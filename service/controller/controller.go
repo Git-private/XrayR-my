@@ -85,10 +85,10 @@ func (c *Controller) Start() error {
 		Interval: time.Duration(c.config.UpdatePeriodic) * time.Second,
 		Execute:  c.userInfoMonitor,
 	}
-	log.Print("Start monitor node status")
-	c.nodeInfoMonitorPeriodic.Start()
-	log.Print("Start report node status")
-	c.userReportPeriodic.Start()
+	log.Printf("[NodeID: %d] Start monitor node status", c.nodeInfo.NodeID)
+	_ = c.nodeInfoMonitorPeriodic.Start()
+	log.Printf("[NodeID: %d] Start report node status", c.nodeInfo.NodeID)
+	_ = c.userReportPeriodic.Start()
 	return nil
 }
 
@@ -125,7 +125,7 @@ func (c *Controller) nodeInfoMonitor() (err error) {
 		return nil
 	}
 
-	var nodeInfoChanged bool = false
+	var nodeInfoChanged = false
 	// If nodeInfo changed
 	if !reflect.DeepEqual(c.nodeInfo, newNodeInfo) {
 		// Remove old tag
@@ -215,7 +215,7 @@ func (c *Controller) nodeInfoMonitor() (err error) {
 				log.Print(err)
 			}
 		}
-		log.Printf("%d user deleted, %d user added", len(deleted), len(added))
+		log.Printf("[NodeID: %d] %d user deleted, %d user added", c.nodeInfo.NodeID, len(deleted), len(added))
 	}
 	c.userList = newUserInfo
 	return nil
@@ -327,13 +327,13 @@ func (c *Controller) addNewUser(userInfo *[]api.UserInfo, nodeInfo *api.NodeInfo
 	} else if nodeInfo.NodeType == "Shadowsocks-Plugin" {
 		users = buildSSPluginUser(c.Tag, userInfo)
 	} else {
-		return fmt.Errorf("Unsupported node type: %s", nodeInfo.NodeType)
+		return fmt.Errorf("unsupported node type: %s", nodeInfo.NodeType)
 	}
 	err = c.addUsers(users, c.Tag)
 	if err != nil {
 		return err
 	}
-	log.Printf("Added %d new users", len(*userInfo))
+	log.Printf("[NodeID: %d] Added %d new users", c.nodeInfo.NodeID, len(*userInfo))
 	return nil
 }
 
