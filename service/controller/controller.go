@@ -86,9 +86,9 @@ func (c *Controller) Start() error {
 		Interval: time.Duration(c.config.UpdatePeriodic) * time.Second,
 		Execute:  c.userInfoMonitor,
 	}
-	log.Printf("[NodeID: %d] Start monitor node status", c.nodeInfo.NodeID)
+	log.Printf("[%s: %d] Start monitor node status", c.nodeInfo.NodeType, c.nodeInfo.NodeID)
 	_ = c.nodeInfoMonitorPeriodic.Start()
-	log.Printf("[NodeID: %d] Start report node status", c.nodeInfo.NodeID)
+	log.Printf("[%s: %d] Start report node status", c.nodeInfo.NodeType, c.nodeInfo.NodeID)
 	_ = c.userReportPeriodic.Start()
 	return nil
 }
@@ -216,7 +216,7 @@ func (c *Controller) nodeInfoMonitor() (err error) {
 				log.Print(err)
 			}
 		}
-		log.Printf("[NodeID: %d] %d user deleted, %d user added", c.nodeInfo.NodeID, len(deleted), len(added))
+		log.Printf("[%s: %d] %d user deleted, %d user added", c.nodeInfo.NodeType, c.nodeInfo.NodeID, len(deleted), len(added))
 	}
 	c.userList = newUserInfo
 	return nil
@@ -335,7 +335,7 @@ func (c *Controller) addNewUser(userInfo *[]api.UserInfo, nodeInfo *api.NodeInfo
 	if err != nil {
 		return err
 	}
-	log.Printf("[NodeID: %d] Added %d new users", c.nodeInfo.NodeID, len(*userInfo))
+	log.Printf("[%s: %d] Added %d new users", c.nodeInfo.NodeType, c.nodeInfo.NodeID, len(*userInfo))
 	return nil
 }
 
