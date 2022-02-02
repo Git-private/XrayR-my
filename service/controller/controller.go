@@ -1,7 +1,6 @@
 package controller
 
 import (
-	"encoding/base64"
 	"fmt"
 	"log"
 	"reflect"
@@ -420,7 +419,7 @@ func (c *Controller) userInfoMonitor() (err error) {
 		if err = c.apiClient.ReportNodeOnlineUsers(onlineDevice); err != nil {
 			log.Print(err)
 		} else {
-			log.Printf("Report %d online users", len(*onlineDevice))
+			log.Printf("[%s: %d] Report %d online users", c.nodeInfo.NodeType, c.nodeInfo.NodeID, len(*onlineDevice))
 		}
 	}
 	// Report Illegal user
@@ -430,7 +429,7 @@ func (c *Controller) userInfoMonitor() (err error) {
 		if err = c.apiClient.ReportIllegal(detectResult); err != nil {
 			log.Print(err)
 		} else {
-			log.Printf("Report %d illegal behaviors", len(*detectResult))
+			log.Printf("[%s: %d] Report %d illegal behaviors", c.nodeInfo.NodeType, c.nodeInfo.NodeID, len(*detectResult))
 		}
 
 	}
@@ -438,5 +437,5 @@ func (c *Controller) userInfoMonitor() (err error) {
 }
 
 func (c *Controller) buildNodeTag() string {
-	return fmt.Sprintf("%s_%s_%d", c.nodeInfo.NodeType, base64.StdEncoding.EncodeToString([]byte(c.config.ListenIP)), c.nodeInfo.Port)
+	return fmt.Sprintf("%s_%s_%d", c.nodeInfo.NodeType, c.config.ListenIP, c.nodeInfo.Port)
 }
