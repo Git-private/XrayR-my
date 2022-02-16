@@ -17,7 +17,7 @@ jobs:
         id: docker_meta
         uses: crazy-max/ghaction-docker-meta@v1
         with:
-          images: crackair/xrayr
+          images: aiastia/xrayr
           tag-semver: |
             {{version}}
             {{major}}.{{minor}}
