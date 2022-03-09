@@ -245,6 +245,7 @@ func buildVlessFallbacks(fallbackConfigs []*FallBackConfig) ([]*conf.VLessInboun
 		}
 		vlessFallBacks[i] = &conf.VLessInboundFallback{
 			Name: c.SNI,
+			Alpn: c.Alpn,
 			Path: c.Path,
 			Dest: dest,
 			Xver: c.ProxyProtocolVer,
@@ -272,6 +273,7 @@ func buildTrojanFallbacks(fallbackConfigs []*FallBackConfig) ([]*conf.TrojanInbo
 		}
 		trojanFallBacks[i] = &conf.TrojanInboundFallback{
 			Name: c.SNI,
+			Alpn: c.Alpn,
 			Path: c.Path,
 			Dest: dest,
 			Xver: c.ProxyProtocolVer,
