@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"regexp"
 	"strconv"
 	"time"
 
@@ -88,7 +89,7 @@ func readLocalRuleList(path string) (LocalRuleList []api.DetectRule) {
 		for fileScanner.Scan() {
 			LocalRuleList = append(LocalRuleList, api.DetectRule{
 				ID:      -1,
-				Pattern: fileScanner.Text(),
+				Pattern: regexp.MustCompile(fileScanner.Text()),
 			})
 		}
 		// handle first encountered error while reading
@@ -280,7 +281,7 @@ func (c *APIClient) GetNodeRule() (*[]api.DetectRule, error) {
 	for i, rule := range ruleListResponse {
 		ruleListItem := api.DetectRule{
 			ID:      i,
-			Pattern: rule,
+			Pattern: regexp.MustCompile(rule),
 		}
 		ruleList = append(ruleList, ruleListItem)
 	}
