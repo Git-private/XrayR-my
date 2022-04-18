@@ -3,6 +3,7 @@ package controller
 import (
 	"fmt"
 	"log"
+	"math"
 	"reflect"
 	"time"
 
@@ -24,14 +25,16 @@ type Controller struct {
 	userList                *[]api.UserInfo
 	nodeInfoMonitorPeriodic *task.Periodic
 	userReportPeriodic      *task.Periodic
+	panelType               string
 }
 
 // New return a Controller service with default parameters.
-func New(server *core.Instance, api api.API, config *Config) *Controller {
+func New(server *core.Instance, api api.API, config *Config, panelType string) *Controller {
 	controller := &Controller{
 		server:    server,
 		config:    config,
 		apiClient: api,
+		panelType: panelType,
 	}
 	return controller
 }
@@ -86,9 +89,18 @@ func (c *Controller) Start() error {
 		Execute:  c.userInfoMonitor,
 	}
 	log.Printf("[%s: %d] Start monitor node status", c.nodeInfo.NodeType, c.nodeInfo.NodeID)
-	_ = c.nodeInfoMonitorPeriodic.Start()
+	// delay to start nodeInfoMonitor
+	go func() {
+		time.Sleep(time.Duration(c.config.UpdatePeriodic) * time.Second)
+		_ = c.nodeInfoMonitorPeriodic.Start()
+	}()
+
 	log.Printf("[%s: %d] Start report node status", c.nodeInfo.NodeType, c.nodeInfo.NodeID)
-	_ = c.userReportPeriodic.Start()
+	// delay to start userReport
+	go func() {
+		time.Sleep(time.Duration(c.config.UpdatePeriodic) * time.Second)
+		_ = c.userReportPeriodic.Start()
+	}()
 	return nil
 }
 
@@ -319,7 +331,18 @@ func (c *Controller) addNewUser(userInfo *[]api.UserInfo, nodeInfo *api.NodeInfo
 		if nodeInfo.EnableVless {
 			users = c.buildVlessUser(userInfo)
 		} else {
-			users = c.buildVmessUser(userInfo, nodeInfo.AlterID)
+			alterID := 0
+			if c.panelType == "V2board" {
+				alterID = (*c.userList)[0].AlterID
+			} else {
+				alterID = c.nodeInfo.AlterID
+			}
+			if alterID >= 0 && alterID < math.MaxUint16 {
+				users = c.buildVmessUser(userInfo, uint16(alterID))
+			} else {
+				users = c.buildVmessUser(userInfo, 0)
+				return fmt.Errorf("AlterID should between 0 to 1<<16 - 1, set it to 0 for now")
+			}
 		}
 	} else if nodeInfo.NodeType == "Trojan" {
 		users = c.buildTrojanUser(userInfo)
