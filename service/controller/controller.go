@@ -60,12 +60,14 @@ func (c *Controller) Start() error {
 	if err != nil {
 		return err
 	}
+
 	err = c.addNewUser(userInfo, newNodeInfo)
 	if err != nil {
 		return err
 	}
-
+	//sync controller userList
 	c.userList = userInfo
+
 	// Add Limiter
 	if err := c.AddInboundLimiter(c.Tag, newNodeInfo.SpeedLimit, userInfo); err != nil {
 		log.Print(err)
@@ -333,9 +335,10 @@ func (c *Controller) addNewUser(userInfo *[]api.UserInfo, nodeInfo *api.NodeInfo
 		} else {
 			alterID := 0
 			if c.panelType == "V2board" {
-				alterID = (*c.userList)[0].AlterID
+				// use latest userInfo
+				alterID = (*userInfo)[0].AlterID
 			} else {
-				alterID = c.nodeInfo.AlterID
+				alterID = nodeInfo.AlterID
 			}
 			if alterID >= 0 && alterID < math.MaxUint16 {
 				users = c.buildVmessUser(userInfo, uint16(alterID))
