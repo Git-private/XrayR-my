@@ -8,7 +8,7 @@ A Xray backend framework that can easily support many panels.
 
 如果您喜欢本项目，可以右上角点个star+watch，持续关注本项目的进展。
 
-使用教程：[详细使用教程](https://crackair.gitbook.io/xrayr-project/)
+使用教程：[详细使用教程](https://crackair.gitbook.io/gfw-fuck/)
 ## 免责声明
 
 本项目只是本人个人学习开发并维护，本人不保证任何可用性，也不对使用本软件造成的任何后果负责。
@@ -52,17 +52,17 @@ A Xray backend framework that can easily support many panels.
 ## 软件安装
 ### 一键安装
 ```
-bash <(curl -Ls https://raw.githubusercontent.com/XrayR-project/XrayR-release/master/install.sh)
+bash <(curl -Ls https://raw.githubusercontent.com/gfw-fuck/XrayR-release/master/install.sh)
 ```
 ### 使用Docker部署软件
-[Docker部署教程](https://crackair.gitbook.io/xrayr-project/xrayr-xia-zai-he-an-zhuang/install/docker)
+[Docker部署教程](https://crackair.gitbook.io/gfw-fuck/xrayr-xia-zai-he-an-zhuang/install/docker)
 
 ### 手动安装
-[手动安装教程](https://crackair.gitbook.io/xrayr-project/xrayr-xia-zai-he-an-zhuang/install/manual)
+[手动安装教程](https://crackair.gitbook.io/gfw-fuck/xrayr-xia-zai-he-an-zhuang/install/manual)
 
 ## 配置文件及详细使用教程
 
-[详细使用教程](https://crackair.gitbook.io/xrayr-project/)
+[详细使用教程](https://crackair.gitbook.io/gfw-fuck/)
 
 ## Thanks
 
@@ -73,7 +73,7 @@ bash <(curl -Ls https://raw.githubusercontent.com/XrayR-project/XrayR-release/ma
 
 ## Licence
 
-[Mozilla Public License Version 2.0](https://github.com/XrayR-project/XrayR/blob/master/LICENSE)
+[Mozilla Public License Version 2.0](https://github.com/gfw-fuck/XrayR/blob/master/LICENSE)
 
 ## Telgram
 
@@ -83,5 +83,5 @@ bash <(curl -Ls https://raw.githubusercontent.com/XrayR-project/XrayR-release/ma
 
 ## Stargazers over time
 
-[![Stargazers over time](https://starchart.cc/XrayR-project/XrayR.svg)](https://starchart.cc/XrayR-project/XrayR)
+[![Stargazers over time](https://starchart.cc/gfw-fuck/XrayR.svg)](https://starchart.cc/gfw-fuck/XrayR)
 

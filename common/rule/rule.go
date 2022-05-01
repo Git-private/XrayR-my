@@ -8,7 +8,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/XrayR-project/XrayR/api"
+	"github.com/gfw-fuck/XrayR/api"
 	mapset "github.com/deckarep/golang-set"
 )
 

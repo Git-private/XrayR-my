@@ -38,7 +38,7 @@ jobs:
         git config --global --list
 
     - name: Load upstream commits
-      run: git pull https://github.com/XrayR-project/XrayR.git --log --no-commit
+      run: git pull https://github.com/gfw-fuck/XrayR.git --log --no-commit
 
     - name: Apply commit changes
       run: |

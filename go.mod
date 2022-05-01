@@ -1,4 +1,4 @@
-module github.com/XrayR-project/XrayR
+module github.com/gfw-fuck/XrayR
 
 go 1.17
 
