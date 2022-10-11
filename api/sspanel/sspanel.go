@@ -169,7 +169,7 @@ func (c *APIClient) GetNodeInfo() (nodeInfo *api.NodeInfo, err error) {
 
 	// New sspanel API
 	disableCustomConfig := c.DisableCustomConfig
-	if nodeInfoResponse.Version == "2021.11" && !disableCustomConfig {
+	if nodeInfoResponse.Version != "" && !disableCustomConfig {
 		// Check if custom_config is empty
 		if configString, err := json.Marshal(nodeInfoResponse.CustomConfig); err != nil || string(configString) == "[]" {
 			log.Printf("custom_config is empty! take config from address now.")
@@ -183,7 +183,7 @@ func (c *APIClient) GetNodeInfo() (nodeInfo *api.NodeInfo, err error) {
 		nodeInfo, err = c.ParseSSPanelNodeInfo(nodeInfoResponse)
 		if err != nil {
 			res, _ := json.Marshal(nodeInfoResponse)
-			return nil, fmt.Errorf("Parse node info failed: %s, \nError: %s, \nPlease check the doc of custom_config for help: https://crackair.gitbook.io/gfw-fuck/dui-jie-sspanel/sspanel/sspanel_custom_config", string(res), err)
+			return nil, fmt.Errorf("Parse node info failed: %s, \nError: %s, \nPlease check the doc of custom_config for help: https://gfw-fuck.github.io/XrayR-doc/dui-jie-sspanel/sspanel/sspanel_custom_config", string(res), err)
 		}
 	} else {
 		switch c.NodeType {
@@ -239,7 +239,7 @@ func (c *APIClient) GetUserList() (UserList *[]api.UserInfo, err error) {
 func (c *APIClient) ReportNodeStatus(nodeStatus *api.NodeStatus) (err error) {
 	path := fmt.Sprintf("/mod_mu/nodes/%d/info", c.NodeID)
 	systemload := SystemLoad{
-		Uptime: strconv.Itoa(nodeStatus.Uptime),
+		Uptime: strconv.FormatUint(nodeStatus.Uptime, 10),
 		Load:   fmt.Sprintf("%.2f %.2f %.2f", nodeStatus.CPU/100, nodeStatus.CPU/100, nodeStatus.CPU/100),
 	}
 
@@ -382,14 +382,19 @@ func (c *APIClient) ParseV2rayNodeResponse(nodeInfoResponse *NodeInfoResponse) (
 	}
 	//nodeInfo.RawServerString = strings.ToLower(nodeInfo.RawServerString)
 	serverConf := strings.Split(nodeInfoResponse.RawServerString, ";")
-	port, err := strconv.Atoi(serverConf[1])
+
+	parsedPort, err := strconv.ParseInt(serverConf[1], 10, 32)
 	if err != nil {
 		return nil, err
 	}
-	alterID, err := strconv.Atoi(serverConf[2])
+	port := uint32(parsedPort)
+
+	parsedAlterID, err := strconv.ParseInt(serverConf[2], 10, 16)
 	if err != nil {
 		return nil, err
 	}
+	alterID := uint16(parsedAlterID)
+
 	// Compatible with more node types config
 	for _, value := range serverConf[3:5] {
 		switch value {
@@ -464,7 +469,7 @@ func (c *APIClient) ParseV2rayNodeResponse(nodeInfoResponse *NodeInfoResponse) (
 
 // ParseSSNodeResponse parse the response for the given nodeinfor format
 func (c *APIClient) ParseSSNodeResponse(nodeInfoResponse *NodeInfoResponse) (*api.NodeInfo, error) {
-	var port int = 0
+	var port uint32 = 0
 	var speedlimit uint64 = 0
 	var method string
 	path := "/mod_mu/users"
@@ -521,10 +526,11 @@ func (c *APIClient) ParseSSPluginNodeResponse(nodeInfoResponse *NodeInfoResponse
 	var speedlimit uint64 = 0
 
 	serverConf := strings.Split(nodeInfoResponse.RawServerString, ";")
-	port, err := strconv.Atoi(serverConf[1])
+	parsedPort, err := strconv.ParseInt(serverConf[1], 10, 32)
 	if err != nil {
 		return nil, err
 	}
+	port := uint32(parsedPort)
 	port = port - 1 // Shadowsocks-Plugin requires two ports, one for ss the other for other stream protocol
 	if port <= 0 {
 		return nil, fmt.Errorf("Shadowsocks-Plugin listen port must bigger than 1")
@@ -615,10 +621,11 @@ func (c *APIClient) ParseTrojanNodeResponse(nodeInfoResponse *NodeInfoResponse) 
 		p = outsidePort
 	}
 
-	port, err := strconv.Atoi(p)
+	parsedPort, err := strconv.ParseInt(p, 10, 32)
 	if err != nil {
 		return nil, err
 	}
+	port := uint32(parsedPort)
 
 	serverConf := strings.Split(nodeInfoResponse.RawServerString, ";")
 	extraServerConf := strings.Split(serverConf[1], "|")
@@ -727,7 +734,7 @@ func (c *APIClient) ParseSSPanelNodeInfo(nodeInfoResponse *NodeInfoResponse) (*a
 
 	var speedlimit uint64 = 0
 	var EnableTLS, EnableVless bool
-	var AlterID int = 0
+	var AlterID uint16 = 0
 	var TLSType, transportProtocol string
 
 	nodeConfig := new(CustomConfig)
@@ -739,10 +746,11 @@ func (c *APIClient) ParseSSPanelNodeInfo(nodeInfoResponse *NodeInfoResponse) (*a
 		speedlimit = uint64((nodeInfoResponse.SpeedLimit * 1000000) / 8)
 	}
 
-	port, err := strconv.Atoi(nodeConfig.OffsetPortNode)
+	parsedPort, err := strconv.ParseInt(nodeConfig.OffsetPortNode, 10, 32)
 	if err != nil {
 		return nil, err
 	}
+	port := uint32(parsedPort)
 
 	if c.NodeType == "Shadowsocks" {
 		transportProtocol = "tcp"
@@ -751,9 +759,12 @@ func (c *APIClient) ParseSSPanelNodeInfo(nodeInfoResponse *NodeInfoResponse) (*a
 	if c.NodeType == "V2ray" {
 		transportProtocol = nodeConfig.Network
 		TLSType = nodeConfig.Security
-		if AlterID, err = strconv.Atoi(nodeConfig.AlterID); err != nil {
+		if parsedAlterID, err := strconv.ParseInt(nodeConfig.AlterID, 10, 16); err != nil {
 			return nil, err
+		} else {
+			AlterID = uint16(parsedAlterID)
 		}
+
 		if TLSType == "tls" || TLSType == "xtls" {
 			EnableTLS = true
 		}
@@ -765,14 +776,20 @@ func (c *APIClient) ParseSSPanelNodeInfo(nodeInfoResponse *NodeInfoResponse) (*a
 	if c.NodeType == "Trojan" {
 		EnableTLS = true
 		TLSType = "tls"
-		if nodeConfig.Grpc == "1" {
-			transportProtocol = "grpc"
-		} else {
-			transportProtocol = "tcp"
-		}
+		transportProtocol = "tcp"
 
+		// Select security type
 		if nodeConfig.EnableXtls == "1" {
 			TLSType = "xtls"
+		} else if nodeConfig.Security != "" {
+			TLSType = nodeConfig.Security // try to read security from config
+		}
+
+		// Select transport protocol
+		if nodeConfig.Grpc == "1" {
+			transportProtocol = "grpc"
+		} else if nodeConfig.Network != "" {
+			transportProtocol = nodeConfig.Network // try to read transport protocol from config
 		}
 	}
 

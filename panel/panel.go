@@ -6,12 +6,14 @@ import (
 	"log"
 	"sync"
 
+	"github.com/gfw-fuck/XrayR/app/mydispatcher"
+
 	"github.com/gfw-fuck/XrayR/api"
 	"github.com/gfw-fuck/XrayR/api/pmpanel"
 	"github.com/gfw-fuck/XrayR/api/proxypanel"
 	"github.com/gfw-fuck/XrayR/api/sspanel"
 	"github.com/gfw-fuck/XrayR/api/v2board"
-	"github.com/gfw-fuck/XrayR/app/mydispatcher"
+	"github.com/gfw-fuck/XrayR/api/v2raysocks"
 	_ "github.com/gfw-fuck/XrayR/main/distro/all"
 	"github.com/gfw-fuck/XrayR/service"
 	"github.com/gfw-fuck/XrayR/service/controller"
@@ -171,6 +173,8 @@ func (p *Panel) Start() {
 			apiClient = pmpanel.New(nodeConfig.ApiConfig)
 		case "Proxypanel":
 			apiClient = proxypanel.New(nodeConfig.ApiConfig)
+		case "V2RaySocks":
+			apiClient = v2raysocks.New(nodeConfig.ApiConfig)
 		default:
 			log.Panicf("Unsupport panel type: %s", nodeConfig.PanelType)
 		}
