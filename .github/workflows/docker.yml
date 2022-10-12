@@ -3,8 +3,18 @@ on:
   workflow_dispatch:
     inputs:
   push:
+    branches:
+      - master
+    paths:
+      - "**/*.go"
+      - "go.mod"
+      - "go.sum"
+      - ".github/workflows/*.yml"
     tags:
       - 'v*'
+  pull_request:
+    branches:
+      - 'master'
 jobs:
   push_to_registry:
     name: Push Docker image to Docker Hub
@@ -40,5 +50,5 @@ jobs:
           context: .
           platforms: linux/arm/v7,linux/arm64,linux/amd64
           push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ steps.meta.outputs.tags }}
+          tags: ${{ steps.docker_meta.outputs.tags }}
           labels: ${{ steps.docker_meta.outputs.labels }}
