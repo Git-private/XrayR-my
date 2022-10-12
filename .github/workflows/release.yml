@@ -74,8 +74,8 @@ jobs:
             goarch: mips
           # END MIPS
           # BEGIN PPC
-          #- goos: linux
-           # goarch: ppc64
+          # - goos: linux # Removed due to the unsupport of shirou/gopsutil 
+          #   goarch: ppc64
           - goos: linux
             goarch: ppc64le
           # END PPC
@@ -113,7 +113,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v2
         with:
-          go-version: ^1.17.2
+          go-version: ^1.19
 
       - name: Get project dependencies
         run: go mod download
@@ -133,7 +133,6 @@ jobs:
         run: |
           cd ./build_assets || exit 1
           mv XrayR XrayR.exe
-
       - name: Prepare to release
         run: |
           cp ${GITHUB_WORKSPACE}/README.md ./build_assets/README.md
@@ -141,6 +140,7 @@ jobs:
           cp ${GITHUB_WORKSPACE}/main/dns.json ./build_assets/dns.json
           cp ${GITHUB_WORKSPACE}/main/route.json ./build_assets/route.json
           cp ${GITHUB_WORKSPACE}/main/custom_outbound.json ./build_assets/custom_outbound.json
+          cp ${GITHUB_WORKSPACE}/main/custom_inbound.json ./build_assets/custom_inbound.json
           cp ${GITHUB_WORKSPACE}/main/rulelist ./build_assets/rulelist
           cp ${GITHUB_WORKSPACE}/main/config.yml.example ./build_assets/config.yml
           LIST=('geoip geoip geoip' 'domain-list-community dlc geosite')
