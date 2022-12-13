@@ -89,7 +89,7 @@ func TestGetUserList(t *testing.T) {
 func TestReportNodeStatus(t *testing.T) {
 	client := CreateClient()
 	nodeStatus := &api.NodeStatus{
-		1, 1, 1, 256,
+		CPU: 1, Mem: 1, Disk: 1, Uptime: 256,
 	}
 	err := client.ReportNodeStatus(nodeStatus)
 	if err != nil {
@@ -111,7 +111,7 @@ func TestReportReportNodeOnlineUsers(t *testing.T) {
 			IP:  fmt.Sprintf("1.1.1.%d", i),
 		}
 	}
-	//client.Debug()
+	// client.Debug()
 	err = client.ReportNodeOnlineUsers(&onlineUserList)
 	if err != nil {
 		t.Error(err)
@@ -154,8 +154,8 @@ func TestReportIllegal(t *testing.T) {
 	client := CreateClient()
 
 	detectResult := []api.DetectResult{
-		api.DetectResult{1, 1},
-		api.DetectResult{1, 2},
+		{1, 1},
+		{1, 2},
 	}
 	client.Debug()
 	err := client.ReportIllegal(&detectResult)

@@ -13,14 +13,15 @@ import (
 	"sync"
 	"time"
 
-	"github.com/gfw-fuck/XrayR/api"
 	"github.com/go-resty/resty/v2"
+
+	"github.com/gfw-fuck/XrayR/api"
 )
 
 var (
 	firstPortRe  = regexp.MustCompile(`(?m)port=(?P<outport>\d+)#?`) // First Port
 	secondPortRe = regexp.MustCompile(`(?m)port=\d+#(\d+)`)          // Second Port
-	hostRe       = regexp.MustCompile(`(?m)host=([\w\.]+)\|?`)       // Host
+	hostRe       = regexp.MustCompile(`(?m)host=([\w.]+)\|?`)        // Host
 )
 
 // APIClient create a api client to the panel.
@@ -89,7 +90,7 @@ func readLocalRuleList(path string) (LocalRuleList []api.DetectRule) {
 		// open the file
 		file, err := os.Open(path)
 
-		//handle errors while opening
+		// handle errors while opening
 		if err != nil {
 			log.Printf("Error when opening file: %s", err)
 			return LocalRuleList
@@ -107,7 +108,7 @@ func readLocalRuleList(path string) (LocalRuleList []api.DetectRule) {
 		// handle first encountered error while reading
 		if err := fileScanner.Err(); err != nil {
 			log.Fatalf("Error while reading file: %s", err)
-			return make([]api.DetectRule, 0)
+			return
 		}
 
 		file.Close()
@@ -143,7 +144,7 @@ func (c *APIClient) parseResponse(res *resty.Response, path string, err error) (
 
 	if response.Ret != 1 {
 		res, _ := json.Marshal(&response)
-		return nil, fmt.Errorf("Ret %s invalid", string(res))
+		return nil, fmt.Errorf("ret %s invalid", string(res))
 	}
 	return response, nil
 }
@@ -164,7 +165,7 @@ func (c *APIClient) GetNodeInfo() (nodeInfo *api.NodeInfo, err error) {
 	nodeInfoResponse := new(NodeInfoResponse)
 
 	if err := json.Unmarshal(response.Data, nodeInfoResponse); err != nil {
-		return nil, fmt.Errorf("Unmarshal %s failed: %s", reflect.TypeOf(nodeInfoResponse), err)
+		return nil, fmt.Errorf("unmarshal %s failed: %s", reflect.TypeOf(nodeInfoResponse), err)
 	}
 
 	// New sspanel API
@@ -183,7 +184,7 @@ func (c *APIClient) GetNodeInfo() (nodeInfo *api.NodeInfo, err error) {
 		nodeInfo, err = c.ParseSSPanelNodeInfo(nodeInfoResponse)
 		if err != nil {
 			res, _ := json.Marshal(nodeInfoResponse)
-			return nil, fmt.Errorf("Parse node info failed: %s, \nError: %s, \nPlease check the doc of custom_config for help: https://gfw-fuck.github.io/XrayR-doc/dui-jie-sspanel/sspanel/sspanel_custom_config", string(res), err)
+			return nil, fmt.Errorf("Parse node info failed: %s, \nError: %s, \nPlease check the doc of custom_config for help: https://xrayr-project.github.io/XrayR-doc/dui-jie-sspanel/sspanel/sspanel_custom_config", string(res), err)
 		}
 	} else {
 		switch c.NodeType {
@@ -196,7 +197,7 @@ func (c *APIClient) GetNodeInfo() (nodeInfo *api.NodeInfo, err error) {
 		case "Shadowsocks-Plugin":
 			nodeInfo, err = c.ParseSSPluginNodeResponse(nodeInfoResponse)
 		default:
-			return nil, fmt.Errorf("Unsupported Node type: %s", c.NodeType)
+			return nil, fmt.Errorf("unsupported Node type: %s", c.NodeType)
 		}
 	}
 
@@ -225,12 +226,12 @@ func (c *APIClient) GetUserList() (UserList *[]api.UserInfo, err error) {
 	userListResponse := new([]UserResponse)
 
 	if err := json.Unmarshal(response.Data, userListResponse); err != nil {
-		return nil, fmt.Errorf("Unmarshal %s failed: %s", reflect.TypeOf(userListResponse), err)
+		return nil, fmt.Errorf("unmarshal %s failed: %s", reflect.TypeOf(userListResponse), err)
 	}
 	userList, err := c.ParseUserListResponse(userListResponse)
 	if err != nil {
 		res, _ := json.Marshal(userListResponse)
-		return nil, fmt.Errorf("Parse user list failed: %s", string(res))
+		return nil, fmt.Errorf("parse user list failed: %s", string(res))
 	}
 	return userList, nil
 }
@@ -240,7 +241,7 @@ func (c *APIClient) ReportNodeStatus(nodeStatus *api.NodeStatus) (err error) {
 	path := fmt.Sprintf("/mod_mu/nodes/%d/info", c.NodeID)
 	systemload := SystemLoad{
 		Uptime: strconv.FormatUint(nodeStatus.Uptime, 10),
-		Load:   fmt.Sprintf("%.2f %.2f %.2f", nodeStatus.CPU/100, nodeStatus.CPU/100, nodeStatus.CPU/100),
+		Load:   fmt.Sprintf("%.2f %.2f %.2f", nodeStatus.CPU/100, nodeStatus.Mem/100, nodeStatus.Disk/100),
 	}
 
 	res, err := c.client.R().
@@ -257,7 +258,7 @@ func (c *APIClient) ReportNodeStatus(nodeStatus *api.NodeStatus) (err error) {
 	return nil
 }
 
-//ReportNodeOnlineUsers reports online user ip
+// ReportNodeOnlineUsers reports online user ip
 func (c *APIClient) ReportNodeOnlineUsers(onlineUserList *[]api.OnlineUser) error {
 	c.access.Lock()
 	defer c.access.Unlock()
@@ -334,7 +335,7 @@ func (c *APIClient) GetNodeRule() (*[]api.DetectRule, error) {
 	ruleListResponse := new([]RuleItem)
 
 	if err := json.Unmarshal(response.Data, ruleListResponse); err != nil {
-		return nil, fmt.Errorf("Unmarshal %s failed: %s", reflect.TypeOf(ruleListResponse), err)
+		return nil, fmt.Errorf("unmarshal %s failed: %s", reflect.TypeOf(ruleListResponse), err)
 	}
 
 	for _, r := range *ruleListResponse {
@@ -378,9 +379,9 @@ func (c *APIClient) ParseV2rayNodeResponse(nodeInfoResponse *NodeInfoResponse) (
 	var header json.RawMessage
 	var speedlimit uint64 = 0
 	if nodeInfoResponse.RawServerString == "" {
-		return nil, fmt.Errorf("No server info in response")
+		return nil, fmt.Errorf("no server info in response")
 	}
-	//nodeInfo.RawServerString = strings.ToLower(nodeInfo.RawServerString)
+	// nodeInfo.RawServerString = strings.ToLower(nodeInfo.RawServerString)
 	serverConf := strings.Split(nodeInfoResponse.RawServerString, ";")
 
 	parsedPort, err := strconv.ParseInt(serverConf[1], 10, 32)
@@ -444,7 +445,7 @@ func (c *APIClient) ParseV2rayNodeResponse(nodeInfoResponse *NodeInfoResponse) (
 	}
 
 	if err != nil {
-		return nil, fmt.Errorf("Marshal Header Type %s into config fialed: %s", header, err)
+		return nil, fmt.Errorf("marshal Header Type %s into config fialed: %s", header, err)
 	}
 
 	// Create GeneralNodeInfo
@@ -487,7 +488,7 @@ func (c *APIClient) ParseSSNodeResponse(nodeInfoResponse *NodeInfoResponse) (*ap
 	userListResponse := new([]UserResponse)
 
 	if err := json.Unmarshal(response.Data, userListResponse); err != nil {
-		return nil, fmt.Errorf("Unmarshal %s failed: %s", reflect.TypeOf(userListResponse), err)
+		return nil, fmt.Errorf("unmarshal %s failed: %s", reflect.TypeOf(userListResponse), err)
 	}
 	// Find the multi-user
 	for _, u := range *userListResponse {
@@ -498,7 +499,7 @@ func (c *APIClient) ParseSSNodeResponse(nodeInfoResponse *NodeInfoResponse) (*ap
 		}
 	}
 	if port == 0 || method == "" {
-		return nil, fmt.Errorf("Cant find the single port multi user")
+		return nil, fmt.Errorf("cant find the single port multi user")
 	}
 
 	if c.SpeedLimit > 0 {
@@ -603,7 +604,7 @@ func (c *APIClient) ParseTrojanNodeResponse(nodeInfoResponse *NodeInfoResponse) 
 	}
 
 	if nodeInfoResponse.RawServerString == "" {
-		return nil, fmt.Errorf("No server info in response")
+		return nil, fmt.Errorf("no server info in response")
 	}
 	if result := firstPortRe.FindStringSubmatch(nodeInfoResponse.RawServerString); len(result) > 1 {
 		outsidePort = result[1]
@@ -678,7 +679,7 @@ func (c *APIClient) ParseUserListResponse(userInfoResponse *[]UserResponse) (*[]
 
 	var deviceLimit, localDeviceLimit int = 0, 0
 	var speedlimit uint64 = 0
-	userList := []api.UserInfo{}
+	var userList []api.UserInfo
 	for _, user := range *userInfoResponse {
 		if c.DeviceLimit > 0 {
 			deviceLimit = c.DeviceLimit

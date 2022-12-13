@@ -12,9 +12,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/gfw-fuck/XrayR/api"
 	"github.com/bitly/go-simplejson"
 	"github.com/go-resty/resty/v2"
+
+	"github.com/gfw-fuck/XrayR/api"
 )
 
 // APIClient create an api client to the panel.
@@ -80,7 +81,7 @@ func readLocalRuleList(path string) (LocalRuleList []api.DetectRule) {
 		// open the file
 		file, err := os.Open(path)
 
-		//handle errors while opening
+		// handle errors while opening
 		if err != nil {
 			log.Printf("Error when opening file: %s", err)
 			return LocalRuleList
@@ -98,7 +99,7 @@ func readLocalRuleList(path string) (LocalRuleList []api.DetectRule) {
 		// handle first encountered error while reading
 		if err := fileScanner.Err(); err != nil {
 			log.Fatalf("Error while reading file: %s", err)
-			return make([]api.DetectRule, 0)
+			return
 		}
 
 		file.Close()
@@ -132,7 +133,7 @@ func (c *APIClient) parseResponse(res *resty.Response, path string, err error) (
 	}
 	rtn, err := simplejson.NewJson(res.Body())
 	if err != nil {
-		return nil, fmt.Errorf("Ret %s invalid", res.String())
+		return nil, fmt.Errorf("ret %s invalid", res.String())
 	}
 	return rtn, nil
 }
@@ -287,7 +288,7 @@ func (c *APIClient) ReportNodeStatus(nodeStatus *api.NodeStatus) (err error) {
 	return nil
 }
 
-//ReportNodeOnlineUsers implements the API interface
+// ReportNodeOnlineUsers implements the API interface
 func (c *APIClient) ReportNodeOnlineUsers(onlineUserList *[]api.OnlineUser) error {
 	return nil
 }
