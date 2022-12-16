@@ -78,14 +78,26 @@ func (c *Controller) buildSSUser(userInfo *[]api.UserInfo, method string) (users
 	users = make([]*protocol.User, len(*userInfo))
 
 	for i, user := range *userInfo {
-		// // shadowsocks2022 Key = openssl rand -base64 32 and multi users needn't cipher method
+		// // shadowsocks2022 Key = "openssl rand -base64 32" and multi users needn't cipher method
 		if C.Contains(shadowaead_2022.List, strings.ToLower(method)) {
 			e := c.buildUserTag(&user)
+			if len(user.Passwd) < 16 {
+				newError("shadowsocks2022 key's length must be greater than 16").AtError().WriteToLog()
+				return
+			}
+			userKey := user.Passwd[:16]
+			if strings.Contains(method, "256") {
+				if len(user.Passwd) < 32 {
+					newError("shadowsocks2022 key's length must be greater than 32").AtError().WriteToLog()
+					return
+				}
+				userKey = userKey[:32]
+			}
 			users[i] = &protocol.User{
 				Level: 0,
 				Email: e,
 				Account: serial.ToTypedMessage(&shadowsocks_2022.User{
-					Key:   base64.StdEncoding.EncodeToString([]byte(user.Passwd)),
+					Key:   base64.StdEncoding.EncodeToString([]byte(userKey)),
 					Email: e,
 					Level: 0,
 				}),
