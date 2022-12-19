@@ -15,7 +15,7 @@ import (
 
 	"github.com/go-resty/resty/v2"
 
-	"github.com/gfw-fuck/XrayR/api"
+	"github.com/XrayR-project/XrayR/api"
 )
 
 var (

@@ -8,7 +8,7 @@ import (
 
 	// Required features. Can't remove unless there is replacements.
 	// _ "github.com/xtls/xray-core/app/dispatcher"
-	_ "github.com/gfw-fuck/XrayR/app/mydispatcher"
+	_ "github.com/XrayR-project/XrayR/app/mydispatcher"
 
 	// Default commander and all its services. This is an optional feature.
 	_ "github.com/xtls/xray-core/app/commander"

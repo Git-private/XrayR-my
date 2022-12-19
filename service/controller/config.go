@@ -3,8 +3,8 @@ package controller
 import (
 	"github.com/xtls/xray-core/infra/conf"
 
-	"github.com/gfw-fuck/XrayR/common/limiter"
-	"github.com/gfw-fuck/XrayR/common/mylego"
+	"github.com/XrayR-project/XrayR/common/limiter"
+	"github.com/XrayR-project/XrayR/common/mylego"
 )
 
 type Config struct {

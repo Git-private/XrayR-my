@@ -6,8 +6,8 @@ import (
 	"os"
 	"sync"
 
-	"github.com/gfw-fuck/XrayR/api/newV2board"
-	"github.com/gfw-fuck/XrayR/app/mydispatcher"
+	"github.com/XrayR-project/XrayR/api/newV2board"
+	"github.com/XrayR-project/XrayR/app/mydispatcher"
 
 	"github.com/imdario/mergo"
 	"github.com/r3labs/diff/v2"
@@ -17,15 +17,15 @@ import (
 	"github.com/xtls/xray-core/core"
 	"github.com/xtls/xray-core/infra/conf"
 
-	"github.com/gfw-fuck/XrayR/api"
-	"github.com/gfw-fuck/XrayR/api/pmpanel"
-	"github.com/gfw-fuck/XrayR/api/proxypanel"
-	"github.com/gfw-fuck/XrayR/api/sspanel"
-	"github.com/gfw-fuck/XrayR/api/v2board"
-	"github.com/gfw-fuck/XrayR/api/v2raysocks"
-	_ "github.com/gfw-fuck/XrayR/main/distro/all"
-	"github.com/gfw-fuck/XrayR/service"
-	"github.com/gfw-fuck/XrayR/service/controller"
+	"github.com/XrayR-project/XrayR/api"
+	"github.com/XrayR-project/XrayR/api/pmpanel"
+	"github.com/XrayR-project/XrayR/api/proxypanel"
+	"github.com/XrayR-project/XrayR/api/sspanel"
+	"github.com/XrayR-project/XrayR/api/v2board"
+	"github.com/XrayR-project/XrayR/api/v2raysocks"
+	_ "github.com/XrayR-project/XrayR/main/distro/all"
+	"github.com/XrayR-project/XrayR/service"
+	"github.com/XrayR-project/XrayR/service/controller"
 )
 
 // Panel Structure

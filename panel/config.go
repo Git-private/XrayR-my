@@ -1,8 +1,8 @@
 package panel
 
 import (
-	"github.com/gfw-fuck/XrayR/api"
-	"github.com/gfw-fuck/XrayR/service/controller"
+	"github.com/XrayR-project/XrayR/api"
+	"github.com/XrayR-project/XrayR/service/controller"
 )
 
 type Config struct {
