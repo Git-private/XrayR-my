@@ -14,6 +14,8 @@ import (
 
 	"github.com/bitly/go-simplejson"
 	"github.com/go-resty/resty/v2"
+	"github.com/sagernet/sing-shadowsocks/shadowaead_2022"
+	C "github.com/sagernet/sing/common"
 
 	"github.com/gfw-fuck/XrayR/api"
 )
@@ -138,7 +140,7 @@ func (c *APIClient) parseResponse(res *resty.Response, path string, err error) (
 	return rtn, nil
 }
 
-// GetNodeInfo will pull NodeInfo Config from sspanel
+// GetNodeInfo will pull NodeInfo Config from panel
 func (c *APIClient) GetNodeInfo() (nodeInfo *api.NodeInfo, err error) {
 	var nodeType string
 	switch c.NodeType {
@@ -182,7 +184,7 @@ func (c *APIClient) GetNodeInfo() (nodeInfo *api.NodeInfo, err error) {
 	return nodeInfo, nil
 }
 
-// GetUserList will pull user form sspanel
+// GetUserList will pull user form panel
 func (c *APIClient) GetUserList() (UserList *[]api.UserInfo, err error) {
 	var nodeType string
 	switch c.NodeType {
@@ -213,16 +215,16 @@ func (c *APIClient) GetUserList() (UserList *[]api.UserInfo, err error) {
 			user.Email = response.Get("data").GetIndex(i).Get("shadowsocks_user").Get("secret").MustString()
 			user.Passwd = response.Get("data").GetIndex(i).Get("shadowsocks_user").Get("secret").MustString()
 			user.Method = response.Get("data").GetIndex(i).Get("shadowsocks_user").Get("cipher").MustString()
-			user.SpeedLimit = uint64(response.Get("data").GetIndex(i).Get("shadowsocks_user").Get("speed_limit").MustUint64() * 1000000 / 8)
+			user.SpeedLimit = response.Get("data").GetIndex(i).Get("shadowsocks_user").Get("speed_limit").MustUint64() * 1000000 / 8
 		case "Trojan":
 			user.UUID = response.Get("data").GetIndex(i).Get("trojan_user").Get("password").MustString()
 			user.Email = response.Get("data").GetIndex(i).Get("trojan_user").Get("password").MustString()
-			user.SpeedLimit = uint64(response.Get("data").GetIndex(i).Get("trojan_user").Get("speed_limit").MustUint64() * 1000000 / 8)
+			user.SpeedLimit = response.Get("data").GetIndex(i).Get("trojan_user").Get("speed_limit").MustUint64() * 1000000 / 8
 		case "V2ray":
 			user.UUID = response.Get("data").GetIndex(i).Get("v2ray_user").Get("uuid").MustString()
 			user.Email = response.Get("data").GetIndex(i).Get("v2ray_user").Get("email").MustString()
 			user.AlterID = uint16(response.Get("data").GetIndex(i).Get("v2ray_user").Get("alter_id").MustUint64())
-			user.SpeedLimit = uint64(response.Get("data").GetIndex(i).Get("v2ray_user").Get("speed_limit").MustUint64() * 1000000 / 8)
+			user.SpeedLimit = response.Get("data").GetIndex(i).Get("v2ray_user").Get("speed_limit").MustUint64() * 1000000 / 8
 		}
 		if c.SpeedLimit > 0 {
 			user.SpeedLimit = uint64((c.SpeedLimit * 1000000) / 8)
@@ -267,7 +269,7 @@ func (c *APIClient) GetNodeRule() (*[]api.DetectRule, error) {
 		return &ruleList, nil
 	}
 
-	// V2board only support the rule for v2ray
+	// Only support the rule for v2ray
 	// fix: reuse config response
 	c.access.Lock()
 	defer c.access.Unlock()
@@ -298,7 +300,7 @@ func (c *APIClient) ReportIllegal(detectResultList *[]api.DetectResult) error {
 	return nil
 }
 
-// ParseTrojanNodeResponse parse the response for the given nodeinfor format
+// ParseTrojanNodeResponse parse the response for the given nodeInfo format
 func (c *APIClient) ParseTrojanNodeResponse(nodeInfoResponse *simplejson.Json) (*api.NodeInfo, error) {
 	var TLSType = "tls"
 	if c.EnableXTLS {
@@ -313,7 +315,7 @@ func (c *APIClient) ParseTrojanNodeResponse(nodeInfoResponse *simplejson.Json) (
 	host := inboundInfo.Get("streamSettings").Get("tlsSettings").Get("serverName").MustString()
 
 	// Create GeneralNodeInfo
-	nodeinfo := &api.NodeInfo{
+	nodeInfo := &api.NodeInfo{
 		NodeType:          c.NodeType,
 		NodeID:            c.NodeID,
 		Port:              port,
@@ -322,39 +324,47 @@ func (c *APIClient) ParseTrojanNodeResponse(nodeInfoResponse *simplejson.Json) (
 		TLSType:           TLSType,
 		Host:              host,
 	}
-	return nodeinfo, nil
+	return nodeInfo, nil
 }
 
-// ParseSSNodeResponse parse the response for the given nodeinfor format
+// ParseSSNodeResponse parse the response for the given nodeInfo format
 func (c *APIClient) ParseSSNodeResponse(nodeInfoResponse *simplejson.Json) (*api.NodeInfo, error) {
-	var method string
+	var method, serverPsk string
 	tmpInboundInfo := nodeInfoResponse.Get("inbounds").MustArray()
 	marshalByte, _ := json.Marshal(tmpInboundInfo[0].(map[string]interface{}))
 	inboundInfo, _ := simplejson.NewJson(marshalByte)
 
 	port := uint32(inboundInfo.Get("port").MustUint64())
-	userInfo, err := c.GetUserList()
-	if err != nil {
-		return nil, err
+	method = inboundInfo.Get("settings").Get("method").MustString()
+	// Shadowsocks 2022
+	if C.Contains(shadowaead_2022.List, method) {
+		serverPsk = inboundInfo.Get("settings").Get("password").MustString()
+	} else {
+		userInfo, err := c.GetUserList()
+		if err != nil {
+			return nil, err
+		}
+		if len(*userInfo) > 0 {
+			method = (*userInfo)[0].Method
+		}
 	}
-	if len(*userInfo) > 0 {
-		method = (*userInfo)[0].Method
-	}
+
 	// Create GeneralNodeInfo
-	nodeinfo := &api.NodeInfo{
+	nodeInfo := &api.NodeInfo{
 		NodeType:          c.NodeType,
 		NodeID:            c.NodeID,
 		Port:              port,
 		TransportProtocol: "tcp",
 		CypherMethod:      method,
+		ServerKey:         serverPsk,
 	}
 
-	return nodeinfo, nil
+	return nodeInfo, nil
 }
 
-// ParseV2rayNodeResponse parse the response for the given nodeinfor format
+// ParseV2rayNodeResponse parse the response for the given nodeInfo format
 func (c *APIClient) ParseV2rayNodeResponse(nodeInfoResponse *simplejson.Json) (*api.NodeInfo, error) {
-	var TLSType string = "tls"
+	var TLSType = "tls"
 	var path, host, serviceName string
 	var header json.RawMessage
 	var enableTLS bool

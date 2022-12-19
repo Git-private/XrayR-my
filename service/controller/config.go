@@ -1,6 +1,8 @@
 package controller
 
 import (
+	"github.com/xtls/xray-core/infra/conf"
+
 	"github.com/gfw-fuck/XrayR/common/limiter"
 	"github.com/gfw-fuck/XrayR/common/mylego"
 )
@@ -21,6 +23,7 @@ type Config struct {
 	AutoSpeedLimitConfig    *AutoSpeedLimitConfig            `mapstructure:"AutoSpeedLimitConfig"`
 	GlobalDeviceLimitConfig *limiter.GlobalDeviceLimitConfig `mapstructure:"GlobalDeviceLimitConfig"`
 	FallBackConfigs         []*FallBackConfig                `mapstructure:"FallBackConfigs"`
+	DNSConfig               *conf.DNSConfig
 }
 
 type AutoSpeedLimitConfig struct {
