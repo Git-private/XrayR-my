@@ -81,23 +81,16 @@ func (c *Controller) buildSSUser(userInfo *[]api.UserInfo, method string) (users
 		// shadowsocks2022 Key = "openssl rand -base64 32" and multi users needn't cipher method
 		if C.Contains(shadowaead_2022.List, strings.ToLower(method)) {
 			e := c.buildUserTag(&user)
-			if len(user.Passwd) < 16 {
-				newError(fmt.Errorf("[UID: %d] shadowsocks2022 key's length must be greater than 16", user.UID)).AtError().WriteToLog()
+			userKey, err := c.checkShadowsocksPassword(user.Passwd, method)
+			if err != nil {
+				newError(fmt.Errorf("[UID: %d] %s", user.UID, err)).AtError().WriteToLog()
 				continue
-			}
-			userKey := user.Passwd[:16]
-			if strings.Contains(method, "256") {
-				if len(user.Passwd) < 32 {
-					newError(fmt.Errorf("[UID: %d] shadowsocks2022 key's length must be greater than 32", user.UID)).AtError().WriteToLog()
-					continue
-				}
-				userKey = user.Passwd[:32]
 			}
 			users[i] = &protocol.User{
 				Level: 0,
 				Email: e,
 				Account: serial.ToTypedMessage(&shadowsocks_2022.User{
-					Key:   base64.StdEncoding.EncodeToString([]byte(userKey)),
+					Key:   userKey,
 					Email: e,
 					Level: 0,
 				}),
@@ -123,23 +116,16 @@ func (c *Controller) buildSSPluginUser(userInfo *[]api.UserInfo) (users []*proto
 		// shadowsocks2022 Key = openssl rand -base64 32 and multi users needn't cipher method
 		if C.Contains(shadowaead_2022.List, strings.ToLower(user.Method)) {
 			e := c.buildUserTag(&user)
-			if len(user.Passwd) < 16 {
-				newError(fmt.Errorf("[UID: %d] shadowsocks2022 key's length must be greater than 16", user.UID)).AtError().WriteToLog()
+			userKey, err := c.checkShadowsocksPassword(user.Passwd, user.Method)
+			if err != nil {
+				newError(fmt.Errorf("[UID: %d] %s", user.UID, err)).AtError().WriteToLog()
 				continue
-			}
-			userKey := user.Passwd[:16]
-			if strings.Contains(user.Method, "256") {
-				if len(user.Passwd) < 32 {
-					newError(fmt.Errorf("[UID: %d] shadowsocks2022 key's length must be greater than 32", user.UID)).AtError().WriteToLog()
-					continue
-				}
-				userKey = user.Passwd[:32]
 			}
 			users[i] = &protocol.User{
 				Level: 0,
 				Email: e,
 				Account: serial.ToTypedMessage(&shadowsocks_2022.User{
-					Key:   base64.StdEncoding.EncodeToString([]byte(userKey)),
+					Key:   userKey,
 					Email: e,
 					Level: 0,
 				}),
@@ -179,4 +165,24 @@ func cipherFromString(c string) shadowsocks.CipherType {
 
 func (c *Controller) buildUserTag(user *api.UserInfo) string {
 	return fmt.Sprintf("%s|%s|%d", c.Tag, user.Email, user.UID)
+}
+
+func (c *Controller) checkShadowsocksPassword(password string, method string) (string, error) {
+	if c.panelType == "V2board" {
+		var userKey string
+		if len(password) < 16 {
+			return "", fmt.Errorf("shadowsocks2022 key's length must be greater than 16")
+		}
+		if method == "2022-blake3-aes-128-gcm" {
+			userKey = password[:16]
+		} else {
+			if len(password) < 32 {
+				return "", fmt.Errorf("shadowsocks2022 key's length must be greater than 32")
+			}
+			userKey = password[:32]
+		}
+		return base64.StdEncoding.EncodeToString([]byte(userKey)), nil
+	} else {
+		return password, nil
+	}
 }
