@@ -9,17 +9,19 @@ require (
 	github.com/eko/gocache/store/go_cache/v4 v4.1.2
 	github.com/eko/gocache/store/redis/v4 v4.1.2
 	github.com/fsnotify/fsnotify v1.6.0
+	github.com/gfw-fuck/XrayR v0.8.9
 	github.com/go-acme/lego/v4 v4.9.2-0.20221210101705-6695fcc87344
 	github.com/go-redis/redis/v8 v8.11.5
 	github.com/go-resty/resty/v2 v2.7.0
 	github.com/imdario/mergo v0.3.13
 	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/r3labs/diff/v2 v2.15.1
-	github.com/sagernet/sing v0.1.1
+	github.com/sagernet/sing v0.1.2
 	github.com/sagernet/sing-shadowsocks v0.1.0
 	github.com/shirou/gopsutil/v3 v3.22.11
 	github.com/spf13/viper v1.14.0
 	github.com/stretchr/testify v1.8.1
+	github.com/urfave/cli v1.22.10
 	github.com/xtls/xray-core v1.6.7-0.20221215133507-a55cf1d0bff2
 	golang.org/x/crypto v0.4.0
 	golang.org/x/net v0.4.0
@@ -48,13 +50,13 @@ require (
 	github.com/andybalholm/brotli v1.0.4 // indirect
 	github.com/aws/aws-sdk-go v1.39.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
-	github.com/bmizerany/assert v0.0.0-20160611221934-b7ed37b82869 // indirect
 	github.com/boombuler/barcode v1.0.1-0.20190219062509-6c824513bacc // indirect
 	github.com/cenkalti/backoff/v4 v4.1.3 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/civo/civogo v0.3.11 // indirect
 	github.com/cloudflare/cloudflare-go v0.49.0 // indirect
 	github.com/cpu/goacmedns v0.1.1 // indirect
+	github.com/cpuguy83/go-md2man/v2 v2.0.2 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/deepmap/oapi-codegen v1.9.1 // indirect
 	github.com/dgryski/go-metro v0.0.0-20211217172704-adc40b04c140 // indirect
@@ -135,8 +137,10 @@ require (
 	github.com/prometheus/client_model v0.3.0 // indirect
 	github.com/prometheus/common v0.37.0 // indirect
 	github.com/prometheus/procfs v0.8.0 // indirect
+	github.com/rainycape/memcache v0.0.0-20150622160815-1031fa0ce2f2 // indirect
 	github.com/refraction-networking/utls v1.2.0 // indirect
 	github.com/riobard/go-bloom v0.0.0-20200614022211-cdc8013cb5b3 // indirect
+	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/sacloud/api-client-go v0.2.1 // indirect
 	github.com/sacloud/go-http v0.1.2 // indirect
 	github.com/sacloud/iaas-api-go v1.3.2 // indirect
