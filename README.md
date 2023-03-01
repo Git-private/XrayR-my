@@ -8,6 +8,9 @@
 ![](https://github.com/XrayR-project/XrayR/actions/workflows/docker.yml/badge.svg)
 [![Github All Releases](https://img.shields.io/github/downloads/XrayR-project/XrayR/total.svg)]()
 
+
+[English](https://github.com/XrayR-project/XrayR/blob/master/README-en.md)|[Iranian](https://github.com/XrayR-project/XrayR/blob/master/README_Fa.md)|[Vietnamese](https://github.com/XrayR-project/XrayR/blob/master/README-vi.md)
+
 A Xray backend framework that can easily support many panels.
 
 一个基于Xray的后端框架，支持V2ay,Trojan,Shadowsocks协议，极易扩展，支持多面板对接。
@@ -15,6 +18,7 @@ A Xray backend framework that can easily support many panels.
 如果您喜欢本项目，可以右上角点个star+watch，持续关注本项目的进展。
 
 使用教程：[详细使用教程](https://xrayr-project.github.io/XrayR-doc/)
+
 
 ## 免责声明
 
