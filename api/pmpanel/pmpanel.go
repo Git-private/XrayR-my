@@ -24,7 +24,7 @@ type APIClient struct {
 	Key           string
 	NodeType      string
 	EnableVless   bool
-	EnableXTLS    bool
+	VlessFlow     string
 	SpeedLimit    float64
 	DeviceLimit   int
 	LocalRuleList []api.DetectRule
@@ -61,7 +61,7 @@ func New(apiConfig *api.Config) *APIClient {
 		APIHost:       apiConfig.APIHost,
 		NodeType:      apiConfig.NodeType,
 		EnableVless:   apiConfig.EnableVless,
-		EnableXTLS:    apiConfig.EnableXTLS,
+		VlessFlow:     apiConfig.VlessFlow,
 		SpeedLimit:    apiConfig.SpeedLimit,
 		DeviceLimit:   apiConfig.DeviceLimit,
 		LocalRuleList: localRuleList,
@@ -360,7 +360,7 @@ func (c *APIClient) ReportIllegal(detectResultList *[]api.DetectResult) error {
 func (c *APIClient) ParseV2rayNodeResponse(nodeInfoResponse *NodeInfoResponse) (*api.NodeInfo, error) {
 	var enableTLS bool
 	var path, host, transportProtocol, serviceName string
-	var speedlimit uint64 = 0
+	var speedLimit uint64 = 0
 
 	port := nodeInfoResponse.Port
 	alterID := nodeInfoResponse.AlterId
@@ -374,24 +374,31 @@ func (c *APIClient) ParseV2rayNodeResponse(nodeInfoResponse *NodeInfoResponse) (
 	case "tcp":
 		// TODO
 	}
-
+	// Compatible with more node types config
+	switch nodeInfoResponse.Security {
+	case "tls":
+		enableTLS = true
+	default:
+		enableTLS = false
+	}
 	if c.SpeedLimit > 0 {
-		speedlimit = uint64((c.SpeedLimit * 1000000) / 8)
+		speedLimit = uint64((c.SpeedLimit * 1000000) / 8)
 	} else {
-		speedlimit = uint64((nodeInfoResponse.SpeedLimit * 1000000) / 8)
+		speedLimit = uint64((nodeInfoResponse.SpeedLimit * 1000000) / 8)
 	}
 	// Create GeneralNodeInfo
 	nodeinfo := &api.NodeInfo{
 		NodeType:          c.NodeType,
 		NodeID:            c.NodeID,
 		Port:              port,
-		SpeedLimit:        speedlimit,
+		SpeedLimit:        speedLimit,
 		AlterID:           alterID,
 		TransportProtocol: transportProtocol,
 		EnableTLS:         enableTLS,
 		Path:              path,
 		Host:              host,
 		EnableVless:       c.EnableVless,
+		VlessFlow:         c.VlessFlow,
 		ServiceName:       serviceName,
 	}
 
@@ -400,24 +407,24 @@ func (c *APIClient) ParseV2rayNodeResponse(nodeInfoResponse *NodeInfoResponse) (
 
 // ParseSSNodeResponse parse the response for the given nodeinfor format
 func (c *APIClient) ParseSSNodeResponse(nodeInfoResponse *NodeInfoResponse) (*api.NodeInfo, error) {
-	var speedlimit uint64 = 0
+	var speedLimit uint64 = 0
 
 	if c.SpeedLimit > 0 {
-		speedlimit = uint64((c.SpeedLimit * 1000000) / 8)
+		speedLimit = uint64((c.SpeedLimit * 1000000) / 8)
 	} else {
-		speedlimit = uint64((nodeInfoResponse.SpeedLimit * 1000000) / 8)
+		speedLimit = uint64((nodeInfoResponse.SpeedLimit * 1000000) / 8)
 	}
 	// Create GeneralNodeInfo
-	nodeinfo := &api.NodeInfo{
+	nodeInfo := &api.NodeInfo{
 		NodeType:          c.NodeType,
 		NodeID:            c.NodeID,
 		Port:              nodeInfoResponse.Port,
-		SpeedLimit:        speedlimit,
+		SpeedLimit:        speedLimit,
 		TransportProtocol: "tcp",
 		CypherMethod:      nodeInfoResponse.Method,
 	}
 
-	return nodeinfo, nil
+	return nodeInfo, nil
 }
 
 // ParseTrojanNodeResponse parse the response for the given nodeinfor format
@@ -439,7 +446,7 @@ func (c *APIClient) ParseTrojanNodeResponse(nodeInfoResponse *NodeInfoResponse) 
 		transportProtocol = "grpc"
 	}
 	// Create GeneralNodeInfo
-	nodeinfo := &api.NodeInfo{
+	nodeInfo := &api.NodeInfo{
 		NodeType:          c.NodeType,
 		NodeID:            c.NodeID,
 		Port:              port,
@@ -450,13 +457,13 @@ func (c *APIClient) ParseTrojanNodeResponse(nodeInfoResponse *NodeInfoResponse) 
 		ServiceName:       nodeInfoResponse.Sni,
 	}
 
-	return nodeinfo, nil
+	return nodeInfo, nil
 }
 
 // ParseUserListResponse parse the response for the given nodeinfo format
 func (c *APIClient) ParseUserListResponse(userInfoResponse *[]UserResponse) (*[]api.UserInfo, error) {
-	var deviceLimit int = 0
-	var speedlimit uint64 = 0
+	var deviceLimit = 0
+	var speedLimit uint64 = 0
 	userList := make([]api.UserInfo, len(*userInfoResponse))
 	for i, user := range *userInfoResponse {
 		if c.DeviceLimit > 0 {
@@ -465,15 +472,15 @@ func (c *APIClient) ParseUserListResponse(userInfoResponse *[]UserResponse) (*[]
 			deviceLimit = user.DeviceLimit
 		}
 		if c.SpeedLimit > 0 {
-			speedlimit = uint64((c.SpeedLimit * 1000000) / 8)
+			speedLimit = uint64((c.SpeedLimit * 1000000) / 8)
 		} else {
-			speedlimit = uint64((user.SpeedLimit * 1000000) / 8)
+			speedLimit = uint64((user.SpeedLimit * 1000000) / 8)
 		}
 		userList[i] = api.UserInfo{
 			UID:         user.ID,
 			Passwd:      user.Passwd,
 			UUID:        user.Passwd,
-			SpeedLimit:  speedlimit,
+			SpeedLimit:  speedLimit,
 			DeviceLimit: deviceLimit,
 		}
 	}

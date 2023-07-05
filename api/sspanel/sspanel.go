@@ -3,6 +3,7 @@ package sspanel
 import (
 	"bufio"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -32,13 +33,15 @@ type APIClient struct {
 	Key                 string
 	NodeType            string
 	EnableVless         bool
-	EnableXTLS          bool
+	VlessFlow           string
 	SpeedLimit          float64
 	DeviceLimit         int
 	DisableCustomConfig bool
 	LocalRuleList       []api.DetectRule
 	LastReportOnline    map[int]int
 	access              sync.Mutex
+	version             string
+	eTags               map[string]string
 }
 
 // New creat a api instance
@@ -73,12 +76,13 @@ func New(apiConfig *api.Config) *APIClient {
 		APIHost:             apiConfig.APIHost,
 		NodeType:            apiConfig.NodeType,
 		EnableVless:         apiConfig.EnableVless,
-		EnableXTLS:          apiConfig.EnableXTLS,
+		VlessFlow:           apiConfig.VlessFlow,
 		SpeedLimit:          apiConfig.SpeedLimit,
 		DeviceLimit:         apiConfig.DeviceLimit,
 		LocalRuleList:       localRuleList,
 		DisableCustomConfig: apiConfig.DisableCustomConfig,
 		LastReportOnline:    make(map[int]int),
+		eTags:               make(map[string]string),
 	}
 }
 
@@ -154,8 +158,17 @@ func (c *APIClient) GetNodeInfo() (nodeInfo *api.NodeInfo, err error) {
 	path := fmt.Sprintf("/mod_mu/nodes/%d/info", c.NodeID)
 	res, err := c.client.R().
 		SetResult(&Response{}).
+		SetHeader("If-None-Match", c.eTags["node"]).
 		ForceContentType("application/json").
 		Get(path)
+	// Etag identifier for a specific version of a resource. StatusCode = 304 means no changed
+	if res.StatusCode() == 304 {
+		return nil, errors.New(api.NodeNotModified)
+	}
+
+	if res.Header().Get("ETag") != "" && res.Header().Get("ETag") != c.eTags["node"] {
+		c.eTags["node"] = res.Header().Get("ETag")
+	}
 
 	response, err := c.parseResponse(res, path, err)
 	if err != nil {
@@ -169,6 +182,7 @@ func (c *APIClient) GetNodeInfo() (nodeInfo *api.NodeInfo, err error) {
 	}
 
 	// New sspanel API
+	c.version = nodeInfoResponse.Version
 	disableCustomConfig := c.DisableCustomConfig
 	if nodeInfoResponse.Version != "" && !disableCustomConfig {
 		// Check if custom_config is empty
@@ -214,9 +228,18 @@ func (c *APIClient) GetUserList() (UserList *[]api.UserInfo, err error) {
 	path := "/mod_mu/users"
 	res, err := c.client.R().
 		SetQueryParam("node_id", strconv.Itoa(c.NodeID)).
+		SetHeader("If-None-Match", c.eTags["users"]).
 		SetResult(&Response{}).
 		ForceContentType("application/json").
 		Get(path)
+	// Etag identifier for a specific version of a resource. StatusCode = 304 means no changed
+	if res.StatusCode() == 304 {
+		return nil, errors.New(api.UserNotModified)
+	}
+
+	if res.Header().Get("ETag") != "" && res.Header().Get("ETag") != c.eTags["users"] {
+		c.eTags["users"] = res.Header().Get("ETag")
+	}
 
 	response, err := c.parseResponse(res, path, err)
 	if err != nil {
@@ -238,23 +261,25 @@ func (c *APIClient) GetUserList() (UserList *[]api.UserInfo, err error) {
 
 // ReportNodeStatus reports the node status to the sspanel
 func (c *APIClient) ReportNodeStatus(nodeStatus *api.NodeStatus) (err error) {
-	path := fmt.Sprintf("/mod_mu/nodes/%d/info", c.NodeID)
-	systemload := SystemLoad{
-		Uptime: strconv.FormatUint(nodeStatus.Uptime, 10),
-		Load:   fmt.Sprintf("%.2f %.2f %.2f", nodeStatus.CPU/100, nodeStatus.Mem/100, nodeStatus.Disk/100),
+	// Determine whether a status report is in need
+	if compareVersion(c.version, "2023.2") == -1 {
+		path := fmt.Sprintf("/mod_mu/nodes/%d/info", c.NodeID)
+		systemload := SystemLoad{
+			Uptime: strconv.FormatUint(nodeStatus.Uptime, 10),
+			Load:   fmt.Sprintf("%.2f %.2f %.2f", nodeStatus.CPU/100, nodeStatus.Mem/100, nodeStatus.Disk/100),
+		}
+
+		res, err := c.client.R().
+			SetBody(systemload).
+			SetResult(&Response{}).
+			ForceContentType("application/json").
+			Post(path)
+
+		_, err = c.parseResponse(res, path, err)
+		if err != nil {
+			return err
+		}
 	}
-
-	res, err := c.client.R().
-		SetBody(systemload).
-		SetResult(&Response{}).
-		ForceContentType("application/json").
-		Post(path)
-
-	_, err = c.parseResponse(res, path, err)
-	if err != nil {
-		return err
-	}
-
 	return nil
 }
 
@@ -324,8 +349,18 @@ func (c *APIClient) GetNodeRule() (*[]api.DetectRule, error) {
 	path := "/mod_mu/func/detect_rules"
 	res, err := c.client.R().
 		SetResult(&Response{}).
+		SetHeader("If-None-Match", c.eTags["rules"]).
 		ForceContentType("application/json").
 		Get(path)
+
+	// Etag identifier for a specific version of a resource. StatusCode = 304 means no changed
+	if res.StatusCode() == 304 {
+		return nil, errors.New(api.RuleNotModified)
+	}
+
+	if res.Header().Get("ETag") != "" && res.Header().Get("ETag") != c.eTags["rules"] {
+		c.eTags["rules"] = res.Header().Get("ETag")
+	}
 
 	response, err := c.parseResponse(res, path, err)
 	if err != nil {
@@ -396,7 +431,17 @@ func (c *APIClient) ParseV2rayNodeResponse(nodeInfoResponse *NodeInfoResponse) (
 	}
 	alterID := uint16(parsedAlterID)
 
-	// Parse extra server config
+	// Compatible with more node types config
+	for _, value := range serverConf[3:5] {
+		switch value {
+		case "tls":
+			enableTLS = true
+		default:
+			if value != "" {
+				transportProtocol = value
+			}
+		}
+	}
 	extraServerConf := strings.Split(serverConf[5], "|")
 	serviceName = ""
 	for _, item := range extraServerConf {
@@ -414,7 +459,7 @@ func (c *APIClient) ParseV2rayNodeResponse(nodeInfoResponse *NodeInfoResponse) (
 			host = value
 		case "servicename":
 			serviceName = value
-		case "headertype":
+		case "headerType":
 			HeaderType = value
 		}
 	}
@@ -445,6 +490,7 @@ func (c *APIClient) ParseV2rayNodeResponse(nodeInfoResponse *NodeInfoResponse) (
 		Path:              path,
 		Host:              host,
 		EnableVless:       c.EnableVless,
+		VlessFlow:         c.VlessFlow,
 		ServiceName:       serviceName,
 		Header:            header,
 	}
@@ -523,6 +569,8 @@ func (c *APIClient) ParseSSPluginNodeResponse(nodeInfoResponse *NodeInfoResponse
 	// Compatible with more node types config
 	for _, value := range serverConf[3:5] {
 		switch value {
+		case "tls":
+			enableTLS = true
 		case "ws":
 			transportProtocol = "ws"
 		case "obfs":
@@ -572,7 +620,7 @@ func (c *APIClient) ParseTrojanNodeResponse(nodeInfoResponse *NodeInfoResponse) 
 	// 域名或IP;port=连接端口#偏移端口|host=xx
 	// gz.aaa.com;port=443#12345|host=hk.aaa.com
 	var p, host, outsidePort, insidePort, transportProtocol, serviceName string
-	var speedlimit uint64 = 0
+	var speedLimit uint64 = 0
 
 	if nodeInfoResponse.RawServerString == "" {
 		return nil, fmt.Errorf("no server info in response")
@@ -619,16 +667,16 @@ func (c *APIClient) ParseTrojanNodeResponse(nodeInfoResponse *NodeInfoResponse) 
 	}
 
 	if c.SpeedLimit > 0 {
-		speedlimit = uint64((c.SpeedLimit * 1000000) / 8)
+		speedLimit = uint64((c.SpeedLimit * 1000000) / 8)
 	} else {
-		speedlimit = uint64((nodeInfoResponse.SpeedLimit * 1000000) / 8)
+		speedLimit = uint64((nodeInfoResponse.SpeedLimit * 1000000) / 8)
 	}
 	// Create GeneralNodeInfo
 	nodeinfo := &api.NodeInfo{
 		NodeType:          c.NodeType,
 		NodeID:            c.NodeID,
 		Port:              port,
-		SpeedLimit:        speedlimit,
+		SpeedLimit:        speedLimit,
 		TransportProtocol: transportProtocol,
 		EnableTLS:         true,
 		Host:              host,
@@ -706,7 +754,7 @@ func (c *APIClient) ParseSSPanelNodeInfo(nodeInfoResponse *NodeInfoResponse) (*a
 	var speedlimit uint64 = 0
 	var EnableTLS, EnableVless bool
 	var AlterID uint16 = 0
-	var transportProtocol string
+	var TLSType, transportProtocol string
 
 	nodeConfig := new(CustomConfig)
 	json.Unmarshal(nodeInfoResponse.CustomConfig, nodeConfig)
@@ -729,12 +777,16 @@ func (c *APIClient) ParseSSPanelNodeInfo(nodeInfoResponse *NodeInfoResponse) (*a
 
 	if c.NodeType == "V2ray" {
 		transportProtocol = nodeConfig.Network
+		TLSType = nodeConfig.Security
 		if parsedAlterID, err := strconv.ParseInt(nodeConfig.AlterID, 10, 16); err != nil {
 			return nil, err
 		} else {
 			AlterID = uint16(parsedAlterID)
 		}
 
+		if TLSType == "tls" || TLSType == "xtls" {
+			EnableTLS = true
+		}
 		if nodeConfig.EnableVless == "1" {
 			EnableVless = true
 		}
@@ -742,7 +794,15 @@ func (c *APIClient) ParseSSPanelNodeInfo(nodeInfoResponse *NodeInfoResponse) (*a
 
 	if c.NodeType == "Trojan" {
 		EnableTLS = true
+		TLSType = "tls"
 		transportProtocol = "tcp"
+
+		// Select security type
+		if nodeConfig.EnableXtls == "1" {
+			TLSType = "xtls"
+		} else if nodeConfig.Security != "" {
+			TLSType = nodeConfig.Security // try to read security from config
+		}
 
 		// Select transport protocol
 		if nodeConfig.Grpc == "1" {
@@ -764,10 +824,35 @@ func (c *APIClient) ParseSSPanelNodeInfo(nodeInfoResponse *NodeInfoResponse) (*a
 		Path:              nodeConfig.Path,
 		EnableTLS:         EnableTLS,
 		EnableVless:       EnableVless,
+		VlessFlow:         nodeConfig.Flow,
 		CypherMethod:      nodeConfig.MuEncryption,
 		ServiceName:       nodeConfig.Servicename,
 		Header:            nodeConfig.Header,
 	}
 
 	return nodeinfo, nil
+}
+
+func compareVersion(version1, version2 string) int {
+	n, m := len(version1), len(version2)
+	i, j := 0, 0
+	for i < n || j < m {
+		x := 0
+		for ; i < n && version1[i] != '.'; i++ {
+			x = x*10 + int(version1[i]-'0')
+		}
+		i++ // jump dot
+		y := 0
+		for ; j < m && version2[j] != '.'; j++ {
+			y = y*10 + int(version2[j]-'0')
+		}
+		j++ // jump dot
+		if x > y {
+			return 1
+		}
+		if x < y {
+			return -1
+		}
+	}
+	return 0
 }

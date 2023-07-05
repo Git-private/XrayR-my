@@ -184,8 +184,25 @@ func InboundBuilder(config *Config, nodeInfo *api.NodeInfo, tag string) (*core.I
 
 	streamSetting.Network = &transportProtocol
 
-	// Build TLS and XTLS settings
-	if nodeInfo.EnableTLS && config.CertConfig.CertMode != "none" {
+	// Build TLS and REALITY settings
+	if config.EnableREALITY {
+		dest, err := json.Marshal(config.REALITYConfigs.Dest)
+		if err != nil {
+			return nil, fmt.Errorf("marshal dest %s config fialed: %s", dest, err)
+		}
+		streamSetting.Security = "reality"
+		streamSetting.REALITYSettings = &conf.REALITYConfig{
+			Show:         config.REALITYConfigs.Show,
+			Dest:         dest,
+			Xver:         config.REALITYConfigs.ProxyProtocolVer,
+			ServerNames:  config.REALITYConfigs.ServerNames,
+			PrivateKey:   config.REALITYConfigs.PrivateKey,
+			MinClientVer: config.REALITYConfigs.MinClientVer,
+			MaxClientVer: config.REALITYConfigs.MaxClientVer,
+			MaxTimeDiff:  config.REALITYConfigs.MaxTimeDiff,
+			ShortIds:     config.REALITYConfigs.ShortIds,
+		}
+	} else if nodeInfo.EnableTLS && config.CertConfig.CertMode != "none" {
 		streamSetting.Security = "tls"
 		certFile, keyFile, err := getCertFile(config.CertConfig)
 		if err != nil {
