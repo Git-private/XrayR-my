@@ -37,39 +37,59 @@ type NodeStatus struct {
 }
 
 type NodeInfo struct {
-	NodeType          string // Must be V2ray, Trojan, and Shadowsocks
-	NodeID            int
-	Port              uint32
-	SpeedLimit        uint64 // Bps
-	AlterID           uint16
-	TransportProtocol string
-	FakeType          string
-	Host              string
-	Path              string
-	EnableTLS         bool
-	EnableVless       bool
-	VlessFlow         string
-	CypherMethod      string
-	ServerKey         string
-	ServiceName       string
-	Header            json.RawMessage
-	NameServerConfig  []*conf.NameServerConfig
+	AcceptProxyProtocol bool
+	Authority           string
+	NodeType            string // Must be V2ray, Trojan, and Shadowsocks
+	NodeID              int
+	Port                uint32
+	SpeedLimit          uint64 // Bps
+	AlterID             uint16
+	TransportProtocol   string
+	FakeType            string
+	Host                string
+	Path                string
+	EnableTLS           bool
+	EnableSniffing      bool
+	RouteOnly           bool
+	EnableVless         bool
+	VlessFlow           string
+	CypherMethod        string
+	ServerKey           string
+	ServiceName         string
+	Method              string
+	Header              json.RawMessage
+	HttpHeaders         map[string]*conf.StringList
+	Headers             map[string]string
+	NameServerConfig    []*conf.NameServerConfig
+	EnableREALITY       bool
+	REALITYConfig       *REALITYConfig
+	Show                bool
+	EnableTFO           bool
+	Dest                string
+	ProxyProtocolVer    uint64
+	ServerNames         []string
+	PrivateKey          string
+	MinClientVer        string
+	MaxClientVer        string
+	MaxTimeDiff         uint64
+	ShortIds            []string
+	Xver                uint64
+	Flow                string
+	Security            string
+	Key                 string
+	RejectUnknownSni    bool
 }
 
 type UserInfo struct {
-	UID           int
-	Email         string
-	Passwd        string
-	Port          uint32
-	Method        string
-	SpeedLimit    uint64 // Bps
-	DeviceLimit   int
-	Protocol      string
-	ProtocolParam string
-	Obfs          string
-	ObfsParam     string
-	UUID          string
-	AlterID       uint16
+	UID         int
+	Email       string
+	UUID        string
+	Passwd      string
+	Port        uint32
+	AlterID     uint16
+	Method      string
+	SpeedLimit  uint64 // Bps
+	DeviceLimit int
 }
 
 type OnlineUser struct {
@@ -99,4 +119,15 @@ type DetectRule struct {
 type DetectResult struct {
 	UID    int
 	RuleID int
+}
+
+type REALITYConfig struct {
+	Dest             string
+	ProxyProtocolVer uint64
+	ServerNames      []string
+	PrivateKey       string
+	MinClientVer     string
+	MaxClientVer     string
+	MaxTimeDiff      uint64
+	ShortIds         []string
 }

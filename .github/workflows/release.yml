@@ -11,14 +11,14 @@ on:
       - "go.sum"
       - ".github/workflows/*.yml"
   pull_request:
-    types: [opened, synchronize, reopened]
+    types: [ opened, synchronize, reopened ]
     paths:
       - "**/*.go"
       - "go.mod"
       - "go.sum"
       - ".github/workflows/*.yml"
   release:
-    types: [published]
+    types: [ published ]
 
 jobs:
 
@@ -26,12 +26,10 @@ jobs:
     strategy:
       matrix:
         # Include amd64 on all platforms.
-        goos: [windows, freebsd, openbsd, linux, dragonfly, darwin]
-        goarch: [amd64, 386]
+        goos: [ windows, freebsd, openbsd, linux, darwin ]
+        goarch: [ amd64, 386 ]
         exclude:
-          # Exclude i386 on darwin and dragonfly.
-          - goarch: 386
-            goos: dragonfly
+          # Exclude i386 on darwin.
           - goarch: 386
             goos: darwin
           - goarch: 386
@@ -92,7 +90,7 @@ jobs:
           # END S390X
           # END Other architectures
       fail-fast: false
-      
+
     runs-on: ubuntu-latest
     env:
       GOOS: ${{ matrix.goos }}
@@ -102,18 +100,18 @@ jobs:
     steps:
       - name: Checkout codebase
         uses: actions/checkout@v3
-      - name: Show workflow information 
+      - name: Show workflow information
         id: get_filename
         run: |
           export _NAME=$(jq ".[\"$GOOS-$GOARCH$GOARM$GOMIPS\"].friendlyName" -r < .github/build/friendly-filenames.json)
           echo "GOOS: $GOOS, GOARCH: $GOARCH, GOARM: $GOARM, GOMIPS: $GOMIPS, RELEASE_NAME: $_NAME"
-          echo "::set-output name=ASSET_NAME::$_NAME"
+          echo "ASSET_NAME=$_NAME" >> $GITHUB_OUTPUT
           echo "ASSET_NAME=$_NAME" >> $GITHUB_ENV
-    
+
       - name: Set up Go
         uses: actions/setup-go@v3
         with:
-          go-version: ^1.19
+          go-version: ^1.20
 
       - name: Get project dependencies
         run: go mod download
@@ -122,39 +120,45 @@ jobs:
       - name: Build XrayR
         run: |
           mkdir -p build_assets
-          go build -v -o build_assets/XrayR -trimpath -ldflags "-s -w -buildid=" ./main
-    
+          go build -v -o build_assets/XrayR -trimpath -ldflags "-s -w -buildid="
+
       - name: Build Mips softfloat XrayR
         if: matrix.goarch == 'mips' || matrix.goarch == 'mipsle'
         run: |
-          GOMIPS=softfloat go build -v -o build_assets/XrayR_softfloat -trimpath -ldflags "-s -w -buildid=" ./main
+          GOMIPS=softfloat go build -v -o build_assets/XrayR_softfloat -trimpath -ldflags "-s -w -buildid="
       - name: Rename Windows XrayR
         if: matrix.goos == 'windows'
         run: |
           cd ./build_assets || exit 1
           mv XrayR XrayR.exe
+
       - name: Prepare to release
-        run: |
-          cp ${GITHUB_WORKSPACE}/README.md ./build_assets/README.md
-          cp ${GITHUB_WORKSPACE}/LICENSE ./build_assets/LICENSE
-          cp ${GITHUB_WORKSPACE}/main/dns.json ./build_assets/dns.json
-          cp ${GITHUB_WORKSPACE}/main/route.json ./build_assets/route.json
-          cp ${GITHUB_WORKSPACE}/main/custom_outbound.json ./build_assets/custom_outbound.json
-          cp ${GITHUB_WORKSPACE}/main/custom_inbound.json ./build_assets/custom_inbound.json
-          cp ${GITHUB_WORKSPACE}/main/rulelist ./build_assets/rulelist
-          cp ${GITHUB_WORKSPACE}/main/config.yml.example ./build_assets/config.yml
-          LIST=('geoip geoip geoip' 'domain-list-community dlc geosite')
-          for i in "${LIST[@]}"
-          do
-            INFO=($(echo $i | awk 'BEGIN{FS=" ";OFS=" "} {print $1,$2,$3}'))
-            LASTEST_TAG="$(curl -sL "https://api.github.com/repos/v2fly/${INFO[0]}/releases" | jq -r ".[0].tag_name" || echo "latest")"
-            FILE_NAME="${INFO[2]}.dat"
-            echo -e "Downloading ${FILE_NAME}..."
-            curl -L "https://github.com/v2fly/${INFO[0]}/releases/download/${LASTEST_TAG}/${INFO[1]}.dat" -o ./build_assets/${FILE_NAME}
-            echo -e "Verifying HASH key..."
-            HASH="$(curl -sL "https://github.com/v2fly/${INFO[0]}/releases/download/${LASTEST_TAG}/${INFO[1]}.dat.sha256sum" | awk -F ' ' '{print $1}')"
-            [ "$(sha256sum "./build_assets/${FILE_NAME}" | awk -F ' ' '{print $1}')" == "${HASH}" ] || { echo -e "The HASH key of ${FILE_NAME} does not match cloud one."; exit 1; }
-          done
+        uses: nick-fields/retry@v2
+        with:
+          timeout_minutes: 60
+          retry_wait_seconds: 60
+          max_attempts: 5
+          command: |
+            cp ${GITHUB_WORKSPACE}/README.md ./build_assets/README.md
+            cp ${GITHUB_WORKSPACE}/LICENSE ./build_assets/LICENSE
+            cp ${GITHUB_WORKSPACE}/release/config/dns.json ./build_assets/dns.json
+            cp ${GITHUB_WORKSPACE}/release/config/route.json ./build_assets/route.json
+            cp ${GITHUB_WORKSPACE}/release/config/custom_outbound.json ./build_assets/custom_outbound.json
+            cp ${GITHUB_WORKSPACE}/release/config/custom_inbound.json ./build_assets/custom_inbound.json
+            cp ${GITHUB_WORKSPACE}/release/config/rulelist ./build_assets/rulelist
+            cp ${GITHUB_WORKSPACE}/release/config/config.yml.example ./build_assets/config.yml
+            LIST=('geoip geoip geoip' 'domain-list-community dlc geosite')
+            for i in "${LIST[@]}"
+            do
+              INFO=($(echo $i | awk 'BEGIN{FS=" ";OFS=" "} {print $1,$2,$3}'))
+              DOWNLOAD_URL="https://raw.githubusercontent.com/v2fly/${INFO[0]}/release/${INFO[1]}.dat"
+              FILE_NAME="${INFO[2]}.dat"
+              echo -e "Downloading ${DOWNLOAD_URL}..."
+              curl -L "${DOWNLOAD_URL}" -o ./build_assets/${FILE_NAME}
+              echo -e "Verifying HASH key..."
+              HASH="$(curl -sL "${DOWNLOAD_URL}.sha256sum" | awk -F ' ' '{print $1}')"
+              [ "$(sha256sum "./build_assets/${FILE_NAME}" | awk -F ' ' '{print $1}')" == "${HASH}" ] || { echo -e "The HASH key of ${FILE_NAME} does not match cloud one."; exit 1; }
+            done
       - name: Create ZIP archive
         shell: bash
         run: |
