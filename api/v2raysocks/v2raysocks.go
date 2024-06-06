@@ -3,14 +3,16 @@ package v2raysocks
 import (
 	"bufio"
 	"encoding/json"
+	"errors"
 	"fmt"
-	"log"
 	"os"
 	"regexp"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
+
+	log "github.com/sirupsen/logrus"
 
 	"github.com/bitly/go-simplejson"
 	"github.com/go-resty/resty/v2"
@@ -34,6 +36,7 @@ type APIClient struct {
 	LocalRuleList []api.DetectRule
 	ConfigResp    *simplejson.Json
 	access        sync.Mutex
+	eTags         map[string]string
 }
 
 // New create an api instance
@@ -46,13 +49,16 @@ func New(apiConfig *api.Config) *APIClient {
 	} else {
 		client.SetTimeout(5 * time.Second)
 	}
+
 	client.OnError(func(req *resty.Request, err error) {
-		if v, ok := err.(*resty.ResponseError); ok {
+		var v *resty.ResponseError
+		if errors.As(err, &v) {
 			// v.Response contains the last response from the server
 			// v.Err contains the original error
 			log.Print(v.Err)
 		}
 	})
+
 	// Create Key for each requests
 	client.SetQueryParams(map[string]string{
 		"node_id": strconv.Itoa(apiConfig.NodeID),
@@ -71,6 +77,7 @@ func New(apiConfig *api.Config) *APIClient {
 		SpeedLimit:    apiConfig.SpeedLimit,
 		DeviceLimit:   apiConfig.DeviceLimit,
 		LocalRuleList: localRuleList,
+		eTags:         make(map[string]string),
 	}
 	return apiClient
 }
@@ -150,12 +157,22 @@ func (c *APIClient) GetNodeInfo() (nodeInfo *api.NodeInfo, err error) {
 		return nil, fmt.Errorf("unsupported Node type: %s", c.NodeType)
 	}
 	res, err := c.client.R().
+		SetHeader("If-None-Match", c.eTags["config"]).
 		SetQueryParams(map[string]string{
 			"act":      "config",
 			"nodetype": nodeType,
 		}).
 		ForceContentType("application/json").
 		Get(c.APIHost)
+
+	// Etag identifier for a specific version of a resource. StatusCode = 304 means no changed
+	if res.StatusCode() == 304 {
+		return nil, errors.New(api.NodeNotModified)
+	}
+	// update etag
+	if res.Header().Get("Etag") != "" && res.Header().Get("Etag") != c.eTags["config"] {
+		c.eTags["config"] = res.Header().Get("Etag")
+	}
 
 	response, err := c.parseResponse(res, "", err)
 	c.access.Lock()
@@ -194,12 +211,22 @@ func (c *APIClient) GetUserList() (UserList *[]api.UserInfo, err error) {
 		return nil, fmt.Errorf("unsupported Node type: %s", c.NodeType)
 	}
 	res, err := c.client.R().
+		SetHeader("If-None-Match", c.eTags["user"]).
 		SetQueryParams(map[string]string{
 			"act":      "user",
 			"nodetype": nodeType,
 		}).
 		ForceContentType("application/json").
 		Get(c.APIHost)
+
+	// Etag identifier for a specific version of a resource. StatusCode = 304 means no changed
+	if res.StatusCode() == 304 {
+		return nil, errors.New(api.UserNotModified)
+	}
+	// update etag
+	if res.Header().Get("Etag") != "" && res.Header().Get("Etag") != c.eTags["user"] {
+		c.eTags["user"] = res.Header().Get("Etag")
+	}
 
 	response, err := c.parseResponse(res, "", err)
 	if err != nil {
@@ -216,20 +243,27 @@ func (c *APIClient) GetUserList() (UserList *[]api.UserInfo, err error) {
 			user.Passwd = response.Get("data").GetIndex(i).Get("shadowsocks_user").Get("secret").MustString()
 			user.Method = response.Get("data").GetIndex(i).Get("shadowsocks_user").Get("cipher").MustString()
 			user.SpeedLimit = response.Get("data").GetIndex(i).Get("shadowsocks_user").Get("speed_limit").MustUint64() * 1000000 / 8
+			user.DeviceLimit = response.Get("data").GetIndex(i).Get("shadowsocks_user").Get("device_limit").MustInt()
 		case "Trojan":
 			user.UUID = response.Get("data").GetIndex(i).Get("trojan_user").Get("password").MustString()
 			user.Email = response.Get("data").GetIndex(i).Get("trojan_user").Get("password").MustString()
 			user.SpeedLimit = response.Get("data").GetIndex(i).Get("trojan_user").Get("speed_limit").MustUint64() * 1000000 / 8
+			user.DeviceLimit = response.Get("data").GetIndex(i).Get("trojan_user").Get("device_limit").MustInt()
 		case "V2ray":
 			user.UUID = response.Get("data").GetIndex(i).Get("v2ray_user").Get("uuid").MustString()
 			user.Email = response.Get("data").GetIndex(i).Get("v2ray_user").Get("email").MustString()
 			user.AlterID = uint16(response.Get("data").GetIndex(i).Get("v2ray_user").Get("alter_id").MustUint64())
 			user.SpeedLimit = response.Get("data").GetIndex(i).Get("v2ray_user").Get("speed_limit").MustUint64() * 1000000 / 8
+			user.DeviceLimit = response.Get("data").GetIndex(i).Get("v2ray_user").Get("device_limit").MustInt()
 		}
 		if c.SpeedLimit > 0 {
 			user.SpeedLimit = uint64((c.SpeedLimit * 1000000) / 8)
 		}
-		user.DeviceLimit = c.DeviceLimit
+
+		if c.DeviceLimit > 0 {
+			user.DeviceLimit = c.DeviceLimit
+		}
+		
 		userList[i] = user
 	}
 	return &userList, nil
@@ -265,11 +299,7 @@ func (c *APIClient) ReportUserTraffic(userTraffic *[]api.UserTraffic) error {
 // GetNodeRule implements the API interface
 func (c *APIClient) GetNodeRule() (*[]api.DetectRule, error) {
 	ruleList := c.LocalRuleList
-	if c.NodeType != "V2ray" {
-		return &ruleList, nil
-	}
 
-	// Only support the rule for v2ray
 	// fix: reuse config response
 	c.access.Lock()
 	defer c.access.Unlock()
@@ -287,11 +317,49 @@ func (c *APIClient) GetNodeRule() (*[]api.DetectRule, error) {
 
 // ReportNodeStatus implements the API interface
 func (c *APIClient) ReportNodeStatus(nodeStatus *api.NodeStatus) (err error) {
+	systemload := NodeStatus{
+		Uptime: int(nodeStatus.Uptime),
+		CPU:    fmt.Sprintf("%d%%", int(nodeStatus.CPU)),
+		Mem:    fmt.Sprintf("%d%%", int(nodeStatus.Mem)),
+		Disk:   fmt.Sprintf("%d%%", int(nodeStatus.Disk)),
+	}
+
+	res, err := c.client.R().
+		SetQueryParam("node_id", strconv.Itoa(c.NodeID)).
+		SetQueryParams(map[string]string{
+			"act":      "nodestatus",
+			"nodetype": strings.ToLower(c.NodeType),
+		}).
+		SetBody(systemload).
+		ForceContentType("application/json").
+		Post(c.APIHost)
+	_, err = c.parseResponse(res, "", err)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
 // ReportNodeOnlineUsers implements the API interface
 func (c *APIClient) ReportNodeOnlineUsers(onlineUserList *[]api.OnlineUser) error {
+	data := make([]NodeOnline, len(*onlineUserList))
+	for i, user := range *onlineUserList {
+		data[i] = NodeOnline{UID: user.UID, IP: user.IP}
+	}
+
+	res, err := c.client.R().
+		SetQueryParam("node_id", strconv.Itoa(c.NodeID)).
+		SetQueryParams(map[string]string{
+			"act":      "onlineusers",
+			"nodetype": strings.ToLower(c.NodeType),
+		}).
+		SetBody(data).
+		ForceContentType("application/json").
+		Post(c.APIHost)
+	_, err = c.parseResponse(res, "", err)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -333,14 +401,6 @@ func (c *APIClient) ParseSSNodeResponse(nodeInfoResponse *simplejson.Json) (*api
 	// Shadowsocks 2022
 	if C.Contains(shadowaead_2022.List, method) {
 		serverPsk = inboundInfo.Get("settings").Get("password").MustString()
-	} else {
-		userInfo, err := c.GetUserList()
-		if err != nil {
-			return nil, err
-		}
-		if len(*userInfo) > 0 {
-			method = (*userInfo)[0].Method
-		}
 	}
 
 	// Create GeneralNodeInfo
@@ -361,6 +421,8 @@ func (c *APIClient) ParseV2rayNodeResponse(nodeInfoResponse *simplejson.Json) (*
 	var path, host, serviceName string
 	var header json.RawMessage
 	var enableTLS bool
+	var enableVless bool
+	var enableReality bool
 	var alterID uint16 = 0
 
 	tmpInboundInfo := nodeInfoResponse.Get("inbounds").MustArray()
@@ -388,10 +450,24 @@ func (c *APIClient) ParseV2rayNodeResponse(nodeInfoResponse *simplejson.Json) (*
 		}
 
 	}
-	if inboundInfo.Get("streamSettings").Get("security").MustString() == "tls" {
-		enableTLS = true
-	} else {
-		enableTLS = false
+
+	enableTLS = inboundInfo.Get("streamSettings").Get("security").MustString() == "tls"
+	enableVless = inboundInfo.Get("streamSettings").Get("security").MustString() == "reality"
+	enableReality = enableVless
+
+	realityConfig := new(api.REALITYConfig)
+	if enableVless {
+		// parse reality config
+		realityConfig = &api.REALITYConfig{
+			Dest:             inboundInfo.Get("streamSettings").Get("realitySettings").Get("dest").MustString(),
+			ProxyProtocolVer: inboundInfo.Get("streamSettings").Get("realitySettings").Get("xver").MustUint64(),
+			ServerNames:      inboundInfo.Get("streamSettings").Get("realitySettings").Get("serverNames").MustStringArray(),
+			PrivateKey:       inboundInfo.Get("streamSettings").Get("realitySettings").Get("privateKey").MustString(),
+			MinClientVer:     inboundInfo.Get("streamSettings").Get("realitySettings").Get("minClientVer").MustString(),
+			MaxClientVer:     inboundInfo.Get("streamSettings").Get("realitySettings").Get("maxClientVer").MustString(),
+			MaxTimeDiff:      inboundInfo.Get("streamSettings").Get("realitySettings").Get("maxTimeDiff").MustUint64(),
+			ShortIds:         inboundInfo.Get("streamSettings").Get("realitySettings").Get("shortIds").MustStringArray(),
+		}
 	}
 
 	// Create GeneralNodeInfo
@@ -405,10 +481,12 @@ func (c *APIClient) ParseV2rayNodeResponse(nodeInfoResponse *simplejson.Json) (*
 		EnableTLS:         enableTLS,
 		Path:              path,
 		Host:              host,
-		EnableVless:       c.EnableVless,
+		EnableVless:       enableVless,
 		VlessFlow:         c.VlessFlow,
 		ServiceName:       serviceName,
 		Header:            header,
+		EnableREALITY:     enableReality,
+		REALITYConfig:     realityConfig,
 	}
 	return nodeInfo, nil
 }
