@@ -1,7 +1,7 @@
 package main
 
 import (
-	log "github.com/sirupsen/logrus"
+	"log"
 
 	"github.com/XrayR-project/XrayR/cmd"
 )

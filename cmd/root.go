@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"os/signal"
 	"path"
@@ -9,8 +10,6 @@ import (
 	"strings"
 	"syscall"
 	"time"
-
-	log "github.com/sirupsen/logrus"
 
 	"github.com/fsnotify/fsnotify"
 	"github.com/spf13/cobra"
@@ -75,11 +74,6 @@ func run() error {
 	if err := config.Unmarshal(panelConfig); err != nil {
 		return fmt.Errorf("Parse config file %v failed: %s \n", cfgFile, err)
 	}
-
-	if panelConfig.LogConfig.Level == "debug" {
-		log.SetReportCaller(true)
-	}
-
 	p := panel.New(panelConfig)
 	lastTime := time.Now()
 	config.OnConfigChange(func(e fsnotify.Event) {
@@ -93,16 +87,10 @@ func run() error {
 			if err := config.Unmarshal(panelConfig); err != nil {
 				log.Panicf("Parse config file %v failed: %s \n", cfgFile, err)
 			}
-
-			if panelConfig.LogConfig.Level == "debug" {
-				log.SetReportCaller(true)
-			}
-
 			p.Start()
 			lastTime = time.Now()
 		}
 	})
-
 	p.Start()
 	defer p.Close()
 

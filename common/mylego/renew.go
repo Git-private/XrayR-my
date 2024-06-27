@@ -3,9 +3,8 @@ package mylego
 import (
 	"crypto"
 	"crypto/x509"
+	"log"
 	"time"
-
-	log "github.com/sirupsen/logrus"
 
 	"github.com/go-acme/lego/v4/certcrypto"
 	"github.com/go-acme/lego/v4/certificate"

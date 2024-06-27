@@ -5,14 +5,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"os"
 	"regexp"
 	"strconv"
 	"strings"
 	"sync/atomic"
 	"time"
-
-	log "github.com/sirupsen/logrus"
 
 	"github.com/bitly/go-simplejson"
 	"github.com/go-resty/resty/v2"
@@ -55,18 +54,10 @@ func New(apiConfig *api.Config) *APIClient {
 		}
 	})
 	client.SetBaseURL(apiConfig.APIHost)
-
-	var nodeType string
-
-	if apiConfig.NodeType == "V2ray" && apiConfig.EnableVless {
-		nodeType = "vless"
-	} else {
-		nodeType = strings.ToLower(apiConfig.NodeType)
-	}
 	// Create Key for each requests
 	client.SetQueryParams(map[string]string{
 		"node_id":   strconv.Itoa(apiConfig.NodeID),
-		"node_type": nodeType,
+		"node_type": strings.ToLower(apiConfig.NodeType),
 		"token":     apiConfig.Key,
 	})
 	// Read local rule list
@@ -184,7 +175,7 @@ func (c *APIClient) GetNodeInfo() (nodeInfo *api.NodeInfo, err error) {
 	c.resp.Store(server)
 
 	switch c.NodeType {
-	case "V2ray", "Vmess", "Vless":
+	case "V2ray":
 		nodeInfo, err = c.parseV2rayNodeResponse(server)
 	case "Trojan":
 		nodeInfo, err = c.parseTrojanNodeResponse(server)
@@ -207,7 +198,7 @@ func (c *APIClient) GetUserList() (UserList *[]api.UserInfo, err error) {
 	path := "/api/v1/server/UniProxy/user"
 
 	switch c.NodeType {
-	case "V2ray", "Trojan", "Shadowsocks", "Vmess", "Vless":
+	case "V2ray", "Trojan", "Shadowsocks":
 		break
 	default:
 		return nil, fmt.Errorf("unsupported node type: %s", c.NodeType)
@@ -364,36 +355,10 @@ func (c *APIClient) parseSSNodeResponse(s *serverConfig) (*api.NodeInfo, error) 
 // parseV2rayNodeResponse parse the response for the given nodeInfo format
 func (c *APIClient) parseV2rayNodeResponse(s *serverConfig) (*api.NodeInfo, error) {
 	var (
-		host          string
-		header        json.RawMessage
-		enableTLS     bool
-		enableREALITY bool
-		dest          string
-		xVer          uint64
+		host      string
+		header    json.RawMessage
+		enableTLS bool
 	)
-
-	if s.VlessTlsSettings.Dest != "" {
-		dest = s.VlessTlsSettings.Dest
-	} else {
-		dest = s.VlessTlsSettings.Sni
-	}
-	if s.VlessTlsSettings.xVer != 0 {
-		xVer = s.VlessTlsSettings.xVer
-	} else {
-		xVer = 0
-	}
-
-	realityConfig := api.REALITYConfig{
-		Dest:             dest + ":" + s.VlessTlsSettings.ServerPort,
-		ProxyProtocolVer: xVer,
-		ServerNames:      []string{s.VlessTlsSettings.Sni},
-		PrivateKey:       s.VlessTlsSettings.PrivateKey,
-		ShortIds:         []string{s.VlessTlsSettings.ShortId},
-	}
-
-	if c.EnableVless {
-		s.NetworkSettings = s.VlessNetworkSettings
-	}
 
 	switch s.Network {
 	case "ws":
@@ -415,16 +380,8 @@ func (c *APIClient) parseV2rayNodeResponse(s *serverConfig) (*api.NodeInfo, erro
 		}
 	}
 
-	switch s.Tls {
-	case 0:
-		enableTLS = false
-		enableREALITY = false
-	case 1:
+	if s.Tls == 1 {
 		enableTLS = true
-		enableREALITY = false
-	case 2:
-		enableTLS = true
-		enableREALITY = true
 	}
 
 	// Create GeneralNodeInfo
@@ -438,11 +395,9 @@ func (c *APIClient) parseV2rayNodeResponse(s *serverConfig) (*api.NodeInfo, erro
 		Path:              s.NetworkSettings.Path,
 		Host:              host,
 		EnableVless:       c.EnableVless,
-		VlessFlow:         s.VlessFlow,
+		VlessFlow:         c.VlessFlow,
 		ServiceName:       s.NetworkSettings.ServiceName,
 		Header:            header,
-		EnableREALITY:     enableREALITY,
-		REALITYConfig:     &realityConfig,
 		NameServerConfig:  s.parseDNSConfig(),
 	}, nil
 }

@@ -240,14 +240,10 @@ func (d *DefaultDispatcher) Dispatch(ctx context.Context, destination net.Destin
 	if !destination.IsValid() {
 		panic("Dispatcher: Invalid destination.")
 	}
-	outbounds := session.OutboundsFromContext(ctx)
-	if len(outbounds) == 0 {
-		outbounds = []*session.Outbound{{}}
-		ctx = session.ContextWithOutbounds(ctx, outbounds)
+	ob := &session.Outbound{
+		Target: destination,
 	}
-	ob := outbounds[len(outbounds)-1]
-	ob.OriginalTarget = destination
-	ob.Target = destination
+	ctx = session.ContextWithOutbound(ctx, ob)
 	content := session.ContentFromContext(ctx)
 	if content == nil {
 		content = new(session.Content)
@@ -292,14 +288,10 @@ func (d *DefaultDispatcher) DispatchLink(ctx context.Context, destination net.De
 	if !destination.IsValid() {
 		return newError("Dispatcher: Invalid destination.")
 	}
-	outbounds := session.OutboundsFromContext(ctx)
-	if len(outbounds) == 0 {
-		outbounds = []*session.Outbound{{}}
-		ctx = session.ContextWithOutbounds(ctx, outbounds)
+	ob := &session.Outbound{
+		Target: destination,
 	}
-	ob := outbounds[len(outbounds)-1]
-	ob.OriginalTarget = destination
-	ob.Target = destination
+	ctx = session.ContextWithOutbound(ctx, ob)
 	content := session.ContentFromContext(ctx)
 	if content == nil {
 		content = new(session.Content)
@@ -382,8 +374,7 @@ func sniffer(ctx context.Context, cReader *cachedReader, metadataOnly bool, netw
 }
 
 func (d *DefaultDispatcher) routedDispatch(ctx context.Context, link *transport.Link, destination net.Destination) {
-	outbounds := session.OutboundsFromContext(ctx)
-	ob := outbounds[len(outbounds)-1]
+	ob := session.OutboundFromContext(ctx)
 	if hosts, ok := d.dns.(dns.HostsLookup); ok && destination.Address.Family().IsDomain() {
 		proxied := hosts.LookupHosts(ob.Target.String())
 		if proxied != nil {
