@@ -1,5 +1,5 @@
 Log:
-  Level: warning # Log level: none, error, warning, info, debug 
+  Level: warning # Log level: none, error, warning, info, debug
   AccessPath: # /etc/XrayR/access.Log
   ErrorPath: # /etc/XrayR/error.log
 DnsConfigPath: # /etc/XrayR/dns.json # Path to dns config, check https://xtls.github.io/config/dns.html for help
@@ -13,12 +13,12 @@ ConnectionConfig:
   DownlinkOnly: 4 # Time limit when the connection is closed after the uplink is closed, Second
   BufferSize: 64 # The internal cache size of each connection, kB
 Nodes:
-  - PanelType: "SSpanel" # Panel type: SSpanel, NewV2board, PMpanel, Proxypanel, V2RaySocks, GoV2Panel
+  - PanelType: "SSpanel" # Panel type: SSpanel, NewV2board, PMpanel, Proxypanel, V2RaySocks, GoV2Panel, BunPanel
     ApiConfig:
       ApiHost: "http://127.0.0.1:667"
       ApiKey: "123"
       NodeID: 41
-      NodeType: V2ray # Node type: V2ray, Shadowsocks, Trojan, Shadowsocks-Plugin
+      NodeType: V2ray # Node type: V2ray, Vmess, Vless, Shadowsocks, Trojan, Shadowsocks-Plugin
       Timeout: 30 # Timeout for the api request
       EnableVless: false # Enable Vless for V2ray Type
       VlessFlow: "xtls-rprx-vision" # Only support vless
@@ -40,7 +40,9 @@ Nodes:
         LimitDuration: 0 # How many minutes will the limiting last (unit: minute)
       GlobalDeviceLimitConfig:
         Enable: false # Enable the global device limit of a user
-        RedisAddr: 127.0.0.1:6379 # The redis server address
+        RedisNetwork: tcp # Redis protocol, tcp or unix
+        RedisAddr: 127.0.0.1:6379 # Redis server address, or unix socket path
+        RedisUsername: # Redis username
         RedisPassword: YOUR PASSWORD # Redis password
         RedisDB: 0 # Redis DB
         Timeout: 5 # Timeout for redis request

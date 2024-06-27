@@ -4,12 +4,13 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
-	"log"
 	"os"
 	"reflect"
 	"regexp"
 	"strconv"
 	"time"
+
+	log "github.com/sirupsen/logrus"
 
 	"github.com/go-resty/resty/v2"
 
@@ -144,7 +145,7 @@ func (c *APIClient) parseResponse(res *resty.Response, path string, err error) (
 func (c *APIClient) GetNodeInfo() (nodeInfo *api.NodeInfo, err error) {
 	var path string
 	switch c.NodeType {
-	case "V2ray":
+	case "V2ray", "Vmess", "Vless":
 		path = fmt.Sprintf("/api/v2ray/v1/node/%d", c.NodeID)
 	case "Trojan":
 		path = fmt.Sprintf("/api/trojan/v1/node/%d", c.NodeID)
@@ -165,7 +166,7 @@ func (c *APIClient) GetNodeInfo() (nodeInfo *api.NodeInfo, err error) {
 	}
 
 	switch c.NodeType {
-	case "V2ray":
+	case "V2ray", "Vmess", "Vless":
 		nodeInfo, err = c.ParseV2rayNodeResponse(&response.Data)
 	case "Trojan":
 		nodeInfo, err = c.ParseTrojanNodeResponse(&response.Data)
@@ -177,7 +178,7 @@ func (c *APIClient) GetNodeInfo() (nodeInfo *api.NodeInfo, err error) {
 
 	if err != nil {
 		res, _ := json.Marshal(response.Data)
-		return nil, fmt.Errorf("Parse node info failed: %s, \nError: %s", string(res), err)
+		return nil, fmt.Errorf("parse node info failed: %s, \nError: %s", string(res), err)
 	}
 
 	return nodeInfo, nil
@@ -187,7 +188,7 @@ func (c *APIClient) GetNodeInfo() (nodeInfo *api.NodeInfo, err error) {
 func (c *APIClient) GetUserList() (UserList *[]api.UserInfo, err error) {
 	var path string
 	switch c.NodeType {
-	case "V2ray":
+	case "V2ray", "Vmess", "Vless":
 		path = fmt.Sprintf("/api/v2ray/v1/userList/%d", c.NodeID)
 	case "Trojan":
 		path = fmt.Sprintf("/api/trojan/v1/userList/%d", c.NodeID)
@@ -208,7 +209,7 @@ func (c *APIClient) GetUserList() (UserList *[]api.UserInfo, err error) {
 	}
 	userList := new([]api.UserInfo)
 	switch c.NodeType {
-	case "V2ray":
+	case "V2ray", "Vmess", "Vless":
 		userList, err = c.ParseV2rayUserListResponse(&response.Data)
 	case "Trojan":
 		userList, err = c.ParseTrojanUserListResponse(&response.Data)
@@ -228,7 +229,7 @@ func (c *APIClient) GetUserList() (UserList *[]api.UserInfo, err error) {
 func (c *APIClient) ReportNodeStatus(nodeStatus *api.NodeStatus) (err error) {
 	var path string
 	switch c.NodeType {
-	case "V2ray":
+	case "V2ray", "Vmess", "Vless":
 		path = fmt.Sprintf("/api/v2ray/v1/nodeStatus/%d", c.NodeID)
 	case "Trojan":
 		path = fmt.Sprintf("/api/trojan/v1/nodeStatus/%d", c.NodeID)
@@ -264,7 +265,7 @@ func (c *APIClient) ReportNodeOnlineUsers(onlineUserList *[]api.OnlineUser) erro
 
 	var path string
 	switch c.NodeType {
-	case "V2ray":
+	case "V2ray", "Vmess", "Vless":
 		path = fmt.Sprintf("/api/v2ray/v1/nodeOnline/%d", c.NodeID)
 	case "Trojan":
 		path = fmt.Sprintf("/api/trojan/v1/nodeOnline/%d", c.NodeID)
@@ -297,7 +298,7 @@ func (c *APIClient) ReportNodeOnlineUsers(onlineUserList *[]api.OnlineUser) erro
 func (c *APIClient) ReportUserTraffic(userTraffic *[]api.UserTraffic) error {
 	var path string
 	switch c.NodeType {
-	case "V2ray":
+	case "V2ray", "Vmess", "Vless":
 		path = fmt.Sprintf("/api/v2ray/v1/userTraffic/%d", c.NodeID)
 	case "Trojan":
 		path = fmt.Sprintf("/api/trojan/v1/userTraffic/%d", c.NodeID)
@@ -332,7 +333,7 @@ func (c *APIClient) ReportUserTraffic(userTraffic *[]api.UserTraffic) error {
 func (c *APIClient) GetNodeRule() (*[]api.DetectRule, error) {
 	var path string
 	switch c.NodeType {
-	case "V2ray":
+	case "V2ray", "Vmess", "Vless":
 		path = fmt.Sprintf("/api/v2ray/v1/nodeRule/%d", c.NodeID)
 	case "Trojan":
 		path = fmt.Sprintf("/api/trojan/v1/nodeRule/%d", c.NodeID)
@@ -380,7 +381,7 @@ func (c *APIClient) GetNodeRule() (*[]api.DetectRule, error) {
 func (c *APIClient) ReportIllegal(detectResultList *[]api.DetectResult) error {
 	var path string
 	switch c.NodeType {
-	case "V2ray":
+	case "V2ray", "Vmess", "Vless":
 		path = fmt.Sprintf("/api/v2ray/v1/trigger/%d", c.NodeID)
 	case "Trojan":
 		path = fmt.Sprintf("/api/trojan/v1/trigger/%d", c.NodeID)

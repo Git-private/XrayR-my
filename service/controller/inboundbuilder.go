@@ -41,7 +41,7 @@ func InboundBuilder(config *Config, nodeInfo *api.NodeInfo, tag string) (*core.I
 	// SniffingConfig
 	sniffingConfig := &conf.SniffingConfig{
 		Enabled:      true,
-		DestOverride: &conf.StringList{"http", "tls"},
+		DestOverride: &conf.StringList{"http", "tls", "quic", "fakedns"},
 	}
 	if config.DisableSniffing {
 		sniffingConfig.Enabled = false
@@ -57,8 +57,8 @@ func InboundBuilder(config *Config, nodeInfo *api.NodeInfo, tag string) (*core.I
 	var proxySetting any
 	// Build Protocol and Protocol setting
 	switch nodeInfo.NodeType {
-	case "V2ray":
-		if nodeInfo.EnableVless {
+	case "V2ray", "Vmess", "Vless":
+		if nodeInfo.EnableVless || (nodeInfo.NodeType == "Vless" && nodeInfo.NodeType != "Vmess") {
 			protocol = "vless"
 			// Enable fallback
 			if config.EnableFallback {
@@ -139,7 +139,7 @@ func InboundBuilder(config *Config, nodeInfo *api.NodeInfo, tag string) (*core.I
 
 	setting, err := json.Marshal(proxySetting)
 	if err != nil {
-		return nil, fmt.Errorf("marshal proxy %s config fialed: %s", nodeInfo.NodeType, err)
+		return nil, fmt.Errorf("marshal proxy %s config failed: %s", nodeInfo.NodeType, err)
 	}
 	inboundDetourConfig.Protocol = protocol
 	inboundDetourConfig.Settings = &setting
@@ -164,6 +164,7 @@ func InboundBuilder(config *Config, nodeInfo *api.NodeInfo, tag string) (*core.I
 		headers["Host"] = nodeInfo.Host
 		wsSettings := &conf.WebSocketConfig{
 			AcceptProxyProtocol: config.EnableProxyProtocol,
+			Host:                nodeInfo.Host,
 			Path:                nodeInfo.Path,
 			Headers:             headers,
 		}
@@ -171,17 +172,34 @@ func InboundBuilder(config *Config, nodeInfo *api.NodeInfo, tag string) (*core.I
 	case "http":
 		hosts := conf.StringList{nodeInfo.Host}
 		httpSettings := &conf.HTTPConfig{
-			Host: &hosts,
-			Path: nodeInfo.Path,
+			Host:    &hosts,
+			Path:    nodeInfo.Path,
+			Method:  nodeInfo.Method,
+			Headers: nodeInfo.HttpHeaders,
 		}
 		streamSetting.HTTPSettings = httpSettings
 	case "grpc":
 		grpcSettings := &conf.GRPCConfig{
 			ServiceName: nodeInfo.ServiceName,
+			Authority:   nodeInfo.Authority,
 		}
 		streamSetting.GRPCConfig = grpcSettings
+	case "quic":
+		quicSettings := &conf.QUICConfig{
+			Header:   nodeInfo.Header,
+			Security: nodeInfo.Security,
+			Key:      nodeInfo.Key,
+		}
+		streamSetting.QUICSettings = quicSettings
+	case "httpupgrade":
+		httpupgradeSettings := &conf.HttpUpgradeConfig{
+			Headers:             nodeInfo.Headers,
+			Path:                nodeInfo.Path,
+			Host:                nodeInfo.Host,
+			AcceptProxyProtocol: nodeInfo.AcceptProxyProtocol,
+		}
+		streamSetting.HTTPUPGRADESettings = httpupgradeSettings
 	}
-
 	streamSetting.Network = &transportProtocol
 
 	// Build TLS and REALITY settings
@@ -287,13 +305,13 @@ func buildVlessFallbacks(fallbackConfigs []*FallBackConfig) ([]*conf.VLessInboun
 	for i, c := range fallbackConfigs {
 
 		if c.Dest == "" {
-			return nil, fmt.Errorf("dest is required for fallback fialed")
+			return nil, fmt.Errorf("dest is required for fallback failed")
 		}
 
 		var dest json.RawMessage
 		dest, err := json.Marshal(c.Dest)
 		if err != nil {
-			return nil, fmt.Errorf("marshal dest %s config fialed: %s", dest, err)
+			return nil, fmt.Errorf("marshal dest %s config failed: %s", dest, err)
 		}
 		vlessFallBacks[i] = &conf.VLessInboundFallback{
 			Name: c.SNI,
@@ -315,13 +333,13 @@ func buildTrojanFallbacks(fallbackConfigs []*FallBackConfig) ([]*conf.TrojanInbo
 	for i, c := range fallbackConfigs {
 
 		if c.Dest == "" {
-			return nil, fmt.Errorf("dest is required for fallback fialed")
+			return nil, fmt.Errorf("dest is required for fallback failed")
 		}
 
 		var dest json.RawMessage
 		dest, err := json.Marshal(c.Dest)
 		if err != nil {
-			return nil, fmt.Errorf("marshal dest %s config fialed: %s", dest, err)
+			return nil, fmt.Errorf("marshal dest %s config failed: %s", dest, err)
 		}
 		trojanFallBacks[i] = &conf.TrojanInboundFallback{
 			Name: c.SNI,

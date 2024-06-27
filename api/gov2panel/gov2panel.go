@@ -5,13 +5,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 	"os"
 	"regexp"
 	"strconv"
 	"strings"
 	"sync/atomic"
 	"time"
+
+	log "github.com/sirupsen/logrus"
 
 	"github.com/bitly/go-simplejson"
 	"github.com/go-resty/resty/v2"
@@ -176,7 +177,7 @@ func (c *APIClient) GetNodeInfo() (nodeInfo *api.NodeInfo, err error) {
 	c.resp.Store(server)
 
 	switch c.NodeType {
-	case "V2ray":
+	case "V2ray", "Vmess", "Vless":
 		nodeInfo, err = c.parseV2rayNodeResponse(server)
 	case "Trojan":
 		nodeInfo, err = c.parseTrojanNodeResponse(server)
@@ -199,7 +200,7 @@ func (c *APIClient) GetUserList() (UserList *[]api.UserInfo, err error) {
 	path := "/api/server/user"
 
 	switch c.NodeType {
-	case "V2ray", "Trojan", "Shadowsocks":
+	case "V2ray", "Trojan", "Shadowsocks", "Vmess", "Vless":
 		break
 	default:
 		return nil, fmt.Errorf("unsupported node type: %s", c.NodeType)
