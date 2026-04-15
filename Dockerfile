@@ -1,8 +1,9 @@
 # Build go
-FROM golang:1.23-alpine AS builder
+FROM golang:1.26-alpine AS builder
 WORKDIR /app
 COPY . .
 ENV CGO_ENABLED=0
+RUN go mod tidy
 RUN go mod download
 RUN go build -v -o XrayR -trimpath -ldflags "-s -w -buildid="
 

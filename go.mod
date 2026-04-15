@@ -16,8 +16,8 @@ require (
 	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/r3labs/diff/v2 v2.15.1
 	github.com/redis/go-redis/v9 v9.18.0
-	github.com/sagernet/sing v0.4.1
-	github.com/sagernet/sing-shadowsocks v0.2.7
+	github.com/sagernet/sing v0.6.10
+	github.com/sagernet/sing-shadowsocks v0.2.8
 	github.com/shirou/gopsutil/v3 v3.24.5
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/cobra v1.10.2
